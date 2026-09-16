@@ -50,6 +50,51 @@ class StudyFlowApp extends StatelessWidget {
   }
 }
 
+
+class StudyFlowData extends ChangeNotifier {
+  StudyFlowData._();
+  static final StudyFlowData instance = StudyFlowData._();
+
+  int goalMinutes = 120;
+  int completedMinutes = 0;
+  int completedTasks = 0;
+  int currentStreak = 7;
+  int longestStreak = 7;
+
+  // Mon-Sun study minutes used by the Analytics chart.
+  final List<int> weeklyMinutes = [40, 60, 35, 80, 55, 95, 0];
+
+  void setGoal(int minutes) {
+    goalMinutes = minutes;
+    notifyListeners();
+  }
+
+  void recordTask({required bool completed, required int minutes}) {
+    if (completed) {
+      completedTasks++;
+      completedMinutes += minutes;
+    } else {
+      if (completedTasks > 0) completedTasks--;
+      completedMinutes = (completedMinutes - minutes).clamp(0, 100000).toInt();
+    }
+    weeklyMinutes[6] = completedMinutes;
+    notifyListeners();
+  }
+
+  void recordFocusSession(int minutes) {
+    completedMinutes += minutes;
+    weeklyMinutes[6] = completedMinutes;
+    if (completedMinutes > 0 && currentStreak == 0) {
+      currentStreak = 1;
+    }
+    if (currentStreak > longestStreak) longestStreak = currentStreak;
+    notifyListeners();
+  }
+
+  double get goalProgress =>
+      goalMinutes <= 0 ? 0.0 : (completedMinutes / goalMinutes).clamp(0.0, 1.0).toDouble();
+}
+
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -1760,9 +1805,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               duration: _durationText(task.durationMinutes),
                               completed: task.completed,
                               onToggle: () {
+                                final next = !task.completed;
                                 setState(() {
-                                  task.completed = !task.completed;
+                                  task.completed = next;
                                 });
+                                StudyFlowData.instance.recordTask(
+                                  completed: next,
+                                  minutes: task.durationMinutes,
+                                );
                               },
                               onTap: () => _openFocus(task),
                             ),
@@ -1903,6 +1953,9 @@ class _FocusScreenState
               _isRunning = false;
             });
 
+            StudyFlowData.instance.recordFocusSession(
+              widget.durationMinutes,
+            );
             _showCompletedMessage();
           }
 
@@ -2557,117 +2610,93 @@ class _NoteCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // MORE
 // ─────────────────────────────────────────────
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
+  void _open(BuildContext context, String title) {
+    final pages = <String, Widget>{
+      'Goals': const GoalsScreen(),
+      'Analytics': const AnalyticsScreen(),
+      'Study Streak': const StudyStreakScreen(),
+      'Motivation': const MotivationScreen(),
+    };
+
+    final page = pages[title];
+    if (page == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(
-          20,
-          28,
-          20,
-          30,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 28, 20, 30),
         children: [
           const Text(
             'More',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight:
-                  FontWeight.w700,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
           ),
-
           const SizedBox(height: 22),
-
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.flag_outlined,
             title: 'Goals',
-            subtitle:
-                'Track what you want to achieve',
+            subtitle: 'Set and track your daily study goal',
+            onTap: () => _open(context, 'Goals'),
           ),
-
-          const _MoreTile(
-            icon:
-                Icons.bar_chart_outlined,
+          _MoreTile(
+            icon: Icons.bar_chart_outlined,
             title: 'Analytics',
-            subtitle:
-                'Understand your study patterns',
+            subtitle: 'View your weekly study progress',
+            onTap: () => _open(context, 'Analytics'),
           ),
-
-          const _MoreTile(
-            icon: Icons
-                .local_fire_department_outlined,
+          _MoreTile(
+            icon: Icons.local_fire_department_outlined,
             title: 'Study Streak',
-            subtitle:
-                'Build consistency every day',
+            subtitle: 'Keep your study consistency going',
+            onTap: () => _open(context, 'Study Streak'),
           ),
-
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.lightbulb_outline,
             title: 'Motivation',
-            subtitle:
-                'Small reminders to keep going',
+            subtitle: 'Daily quotes and study tips',
+            onTap: () => _open(context, 'Motivation'),
           ),
-
           const SizedBox(height: 4),
-
           Card(
-            margin:
-                const EdgeInsets.only(
-              bottom: 12,
-            ),
+            margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 7,
               ),
               leading: Container(
                 width: 46,
                 height: 46,
-                decoration:
-                    BoxDecoration(
-                  color: const Color(
-                    0xFFFFE8E8,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE8E8),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.logout,
-                  color: Colors.redAccent,
-                ),
+                child: const Icon(Icons.logout, color: Colors.redAccent),
               ),
               title: const Text(
                 'Sign Out',
-                style: TextStyle(
-                  fontWeight:
-                      FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: const Padding(
-                padding:
-                    EdgeInsets.only(top: 3),
-                child: Text(
-                  'Sign out of your StudyFlow account',
-                ),
+                padding: EdgeInsets.only(top: 3),
+                child: Text('Sign out of your StudyFlow account'),
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-              ),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () async {
-                await FirebaseAuth
-                    .instance
-                    .signOut();
+                await FirebaseAuth.instance.signOut();
               },
             ),
           ),
@@ -2681,99 +2710,19 @@ class _MoreTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   const _MoreTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.onTap,
   });
-
-  void _openFeature(BuildContext context) {
-    String message;
-
-    switch (title) {
-      case 'Goals':
-        message =
-            'Set your study goals and track what you want to achieve.';
-        break;
-
-      case 'Analytics':
-        message =
-            'Study analytics will show your study time, completed tasks and progress.';
-        break;
-
-      case 'Study Streak':
-        message =
-            'Your study streak helps you stay consistent every day.';
-        break;
-
-      case 'Motivation':
-        message =
-            'Stay motivated with small reminders and positive study tips.';
-        break;
-
-      default:
-        message = subtitle;
-    }
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F0E8),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF5B9067),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.4,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -2786,26 +2735,197 @@ class _MoreTile extends StatelessWidget {
             color: const Color(0xFFE7F0E8),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFF5B9067),
-          ),
+          child: Icon(icon, color: const Color(0xFF5B9067)),
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 3),
           child: Text(subtitle),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// GOALS
+// ─────────────────────────────────────────────
+
+class GoalsScreen extends StatelessWidget {
+  const GoalsScreen({super.key});
+
+  String _formatMinutes(int minutes) {
+    if (minutes < 60) return '$minutes min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+
+  Future<void> _changeGoal(BuildContext context) async {
+    final controller = TextEditingController(
+      text: StudyFlowData.instance.goalMinutes.toString(),
+    );
+
+    final value = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Set daily goal'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Study minutes',
+            hintText: 'Example: 120',
+          ),
         ),
-        onTap: () {
-          _openFeature(context);
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text.trim());
+              if (value != null && value > 0) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    if (value != null) {
+      StudyFlowData.instance.setGoal(value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8F5),
+      appBar: AppBar(
+        title: const Text(
+          'Goals',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: AnimatedBuilder(
+        animation: StudyFlowData.instance,
+        builder: (context, _) {
+          final data = StudyFlowData.instance;
+          final progress = data.goalProgress;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE7F0E8),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.flag_rounded,
+                      size: 34,
+                      color: Color(0xFF5B9067),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Today’s study goal',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_formatMinutes(data.completedMinutes)} of '
+                      '${_formatMinutes(data.goalMinutes)} completed',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 12,
+                        backgroundColor: Colors.white,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF6FA67A),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${(progress * 100).round()}% complete',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Card(
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.timer_outlined,
+                    color: Color(0xFF5B9067),
+                  ),
+                  title: const Text(
+                    'Daily target',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(_formatMinutes(data.goalMinutes)),
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: () => _changeGoal(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.task_alt,
+                    color: Color(0xFF5B9067),
+                  ),
+                  title: const Text(
+                    'Tasks completed',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text('${data.completedTasks} tasks completed'),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'How goals work',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Complete a planned task or finish a Focus session. '
+                'Your study progress updates automatically.',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -2813,6 +2933,619 @@ class _MoreTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────────
+
+class AnalyticsScreen extends StatelessWidget {
+  const AnalyticsScreen({super.key});
+
+  String _format(int minutes) {
+    if (minutes < 60) return '$minutes min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8F5),
+      appBar: AppBar(
+        title: const Text(
+          'Analytics',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: AnimatedBuilder(
+        animation: StudyFlowData.instance,
+        builder: (context, _) {
+          final data = StudyFlowData.instance;
+          final total = data.weeklyMinutes.fold<int>(0, (a, b) => a + b);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _AnalyticsStat(
+                      icon: Icons.timer_outlined,
+                      value: _format(data.completedMinutes),
+                      label: 'Today',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _AnalyticsStat(
+                      icon: Icons.task_alt,
+                      value: '${data.completedTasks}',
+                      label: 'Tasks done',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _AnalyticsStat(
+                icon: Icons.calendar_month_outlined,
+                value: _format(total),
+                label: 'Last 7 days',
+              ),
+              const SizedBox(height: 20),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Weekly progress',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Study time over the last 7 days',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 220,
+                        width: double.infinity,
+                        child: _WeeklyLineChart(
+                          values: data.weeklyMinutes,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.insights_outlined,
+                        color: Color(0xFF5B9067),
+                        size: 30,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          data.completedMinutes >= data.goalMinutes
+                              ? 'Great work! You reached your daily goal. 🎉'
+                              : 'Keep going — you are building your study habit.',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AnalyticsStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _AnalyticsStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF5B9067)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeeklyLineChart extends StatelessWidget {
+  final List<int> values;
+
+  const _WeeklyLineChart({required this.values});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _WeeklyChartPainter(values),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _WeeklyChartPainter extends CustomPainter {
+  final List<int> values;
+
+  _WeeklyChartPainter(this.values);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+
+    final chartLeft = 28.0;
+    final chartRight = size.width - 8;
+    final chartTop = 10.0;
+    final chartBottom = size.height - 28;
+    final chartWidth = chartRight - chartLeft;
+    final chartHeight = chartBottom - chartTop;
+
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE2E7E2)
+      ..strokeWidth = 1;
+
+    final linePaint = Paint()
+      ..color = const Color(0xFF6FA67A)
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final dotPaint = Paint()
+      ..color = const Color(0xFF5B9067)
+      ..style = PaintingStyle.fill;
+
+    final maxValue = (values.reduce((a, b) => a > b ? a : b)).clamp(10, 999999);
+
+    for (int i = 0; i < 4; i++) {
+      final y = chartTop + chartHeight * i / 3;
+      canvas.drawLine(
+        Offset(chartLeft, y),
+        Offset(chartRight, y),
+        gridPaint,
+      );
+    }
+
+    final path = Path();
+
+    for (int i = 0; i < values.length; i++) {
+      final x = chartLeft +
+          (chartWidth * i / (values.length - 1).clamp(1, 100));
+      final y = chartBottom -
+          (values[i] / maxValue) * chartHeight;
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, linePaint);
+
+    for (int i = 0; i < values.length; i++) {
+      final x = chartLeft +
+          (chartWidth * i / (values.length - 1).clamp(1, 100));
+      final y = chartBottom -
+          (values[i] / maxValue) * chartHeight;
+
+      canvas.drawCircle(Offset(x, y), 5, dotPaint);
+    }
+
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final textStyle = const TextStyle(
+      color: Color(0xFF6F756F),
+      fontSize: 11,
+    );
+
+    for (int i = 0; i < labels.length; i++) {
+      final x = chartLeft +
+          (chartWidth * i / (labels.length - 1).clamp(1, 100));
+      final tp = TextPainter(
+        text: TextSpan(text: labels[i], style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset(x - tp.width / 2, chartBottom + 8),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeeklyChartPainter oldDelegate) {
+    return true;
+  }
+}
+
+// ─────────────────────────────────────────────
+// STUDY STREAK
+// ─────────────────────────────────────────────
+
+class StudyStreakScreen extends StatelessWidget {
+  const StudyStreakScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8F5),
+      appBar: AppBar(
+        title: const Text(
+          'Study Streak',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: AnimatedBuilder(
+        animation: StudyFlowData.instance,
+        builder: (context, _) {
+          final data = StudyFlowData.instance;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 28,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE7F0E8),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      '🔥',
+                      style: TextStyle(fontSize: 64),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${data.currentStreak} Day Streak',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Keep studying every day to maintain your streak.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _StreakStat(
+                      value: '${data.currentStreak}',
+                      label: 'Current streak',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StreakStat(
+                      value: '${data.longestStreak}',
+                      label: 'Longest streak',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'This week',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 18,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: const [
+                      _StreakDay(day: 'M', active: true),
+                      _StreakDay(day: 'T', active: true),
+                      _StreakDay(day: 'W', active: true),
+                      _StreakDay(day: 'T', active: true),
+                      _StreakDay(day: 'F', active: true),
+                      _StreakDay(day: 'S', active: true),
+                      _StreakDay(day: 'S', active: false),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Complete at least one task or Focus session each day '
+                'to keep building your streak.',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StreakStat extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StreakStat({
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StreakDay extends StatelessWidget {
+  final String day;
+  final bool active;
+
+  const _StreakDay({
+    required this.day,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          active ? '🔥' : '○',
+          style: TextStyle(
+            fontSize: active ? 24 : 22,
+            color: active ? null : Colors.grey.shade400,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          day,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// MOTIVATION
+// ─────────────────────────────────────────────
+
+class MotivationScreen extends StatefulWidget {
+  const MotivationScreen({super.key});
+
+  @override
+  State<MotivationScreen> createState() => _MotivationScreenState();
+}
+
+class _MotivationScreenState extends State<MotivationScreen> {
+  final List<Map<String, String>> _quotes = const [
+    {
+      'quote': 'Small progress is still progress.',
+      'tip': 'Focus on one task at a time instead of trying to finish everything together.',
+    },
+    {
+      'quote': 'Consistency beats intensity.',
+      'tip': 'A focused 30-minute session every day can build a strong habit.',
+    },
+    {
+      'quote': 'Your future self will thank you for studying today.',
+      'tip': 'Start with the easiest task to build momentum.',
+    },
+    {
+      'quote': 'Don’t wait for motivation. Start, and motivation follows.',
+      'tip': 'Set a timer and give yourself just five minutes to begin.',
+    },
+    {
+      'quote': 'One chapter. One concept. One step at a time.',
+      'tip': 'Break difficult topics into smaller study blocks.',
+    },
+  ];
+
+  int _index = 0;
+
+  void _nextQuote() {
+    setState(() {
+      _index = (_index + 1) % _quotes.length;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _quotes[_index];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8F5),
+      appBar: AppBar(
+        title: const Text(
+          'Motivation',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE7F0E8),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.format_quote_rounded,
+                  size: 42,
+                  color: Color(0xFF5B9067),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  '“${item['quote']}”',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  item['tip']!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 15,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _nextQuote,
+            icon: const Icon(Icons.refresh),
+            label: const Text('New Quote'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF6FA67A),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Today’s reminder',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: const Padding(
+              padding: EdgeInsets.all(18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.self_improvement_outlined,
+                    color: Color(0xFF5B9067),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Put your phone away, open your current task, '
+                      'and give it your full attention. 🌱',
+                      style: TextStyle(height: 1.45),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // SHARED WIDGETS
 // ─────────────────────────────────────────────
 
