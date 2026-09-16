@@ -16,6 +16,10 @@ Future<void> main() async {
   runApp(const StudyFlowApp());
 }
 
+class MyApp extends StudyFlowApp {
+  const MyApp({super.key});
+}
+
 class StudyFlowApp extends StatelessWidget {
   const StudyFlowApp({super.key});
 
@@ -28,20 +32,58 @@ class StudyFlowApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF7F8F5),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6FA67A),
+          seedColor: const Color(0xFF5B9B70),
           brightness: Brightness.light,
         ),
         fontFamily: 'Roboto',
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFF7F8F5),
+          foregroundColor: Color(0xFF17211A),
           elevation: 0,
           surfaceTintColor: Colors.transparent,
+          centerTitle: false,
         ),
         cardTheme: CardThemeData(
           elevation: 0,
           color: Colors.white,
+          margin: EdgeInsets.zero,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.all(Radius.circular(24)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            borderSide: BorderSide(color: Color(0xFF5B9B70), width: 1.5),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF69A878),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            minimumSize: const Size.fromHeight(52),
+          ),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          indicatorColor: const Color(0xFFDCECDD),
+          labelTextStyle: WidgetStatePropertyAll(
+            const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -759,12 +801,10 @@ class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
   @override
-  State<MainNavigation> createState() =>
-      _MainNavigationState();
+  State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState
-    extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -782,65 +822,58 @@ class _MainNavigationState
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar:
-          NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        backgroundColor: Colors.white,
-        elevation: 0,
-        indicatorColor:
-            const Color(0xFFDCEBDD),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(
-              Icons.home_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.home,
-            ),
-            label: 'Home',
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.07),
+                blurRadius: 22,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.calendar_month_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.calendar_month,
-            ),
-            label: 'Plan',
+          child: NavigationBar(
+            height: 72,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() => _currentIndex = index);
+            },
+            backgroundColor: Colors.transparent,
+            indicatorColor: const Color(0xFFDCECDD),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_today_outlined),
+                selectedIcon: Icon(Icons.calendar_today_rounded),
+                label: 'Plan',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.timer_outlined),
+                selectedIcon: Icon(Icons.timer_rounded),
+                label: 'Focus',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.sticky_note_2_outlined),
+                selectedIcon: Icon(Icons.sticky_note_2_rounded),
+                label: 'Notes',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.grid_view_outlined),
+                selectedIcon: Icon(Icons.grid_view_rounded),
+                label: 'More',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.timer_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.timer,
-            ),
-            label: 'Focus',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.note_alt_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.note_alt,
-            ),
-            label: 'Notes',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.more_horiz,
-            ),
-            selectedIcon: Icon(
-              Icons.more_horiz,
-            ),
-            label: 'More',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -855,148 +888,203 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _chapter1Completed = false;
-bool _chapter2Completed = false;
-bool _sqlCompleted = false;
+  bool _chapter2Completed = false;
+  bool _sqlCompleted = false;
 
-int get _completedTasks {
-  int count = 0;
+  int get _completedTasks {
+    int count = 0;
+    if (_chapter1Completed) count++;
+    if (_chapter2Completed) count++;
+    if (_sqlCompleted) count++;
+    return count;
+  }
 
-  if (_chapter1Completed) count++;
-  if (_chapter2Completed) count++;
-  if (_sqlCompleted) count++;
+  double get _progress => _completedTasks / 3;
 
-  return count;
-}
-
-double get _progress => _completedTasks / 3;
   String _greeting() {
     final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  }
 
-    if (hour >= 5 && hour < 12) {
-      return 'Good morning 👋';
-    } else if (hour >= 12 && hour < 17) {
-      return 'Good afternoon 👋';
-    } else if (hour >= 17 && hour < 21) {
-      return 'Good evening 👋';
-    } else {
-      return 'Good night 👋';
-    }
+  String _dateLabel() {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final now = DateTime.now();
+    return '${weekdays[now.weekday - 1]}, ${now.day}';
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  void _openFocus(String title, String subject, int minutes) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FocusScreen(
+          taskTitle: title,
+          subject: subject,
+          durationMinutes: minutes,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final rawName = user?.displayName?.trim();
+    final firstName = rawName != null && rawName.isNotEmpty
+        ? rawName.split(' ').first
+        : 'there';
+
     return SafeArea(
       child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           SliverPadding(
-            padding:
-                const EdgeInsets.fromLTRB(
-              20,
-              24,
-              20,
-              12,
-            ),
-            sliver:
-                SliverToBoxAdapter(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+            sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _greeting(),
+                          '${_greeting()} 👋',
                           style: TextStyle(
+                            color: Colors.grey.shade600,
                             fontSize: 14,
-                            color:
-                                Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        const Text(
-                          'Let’s study smarter.',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight:
-                                FontWeight.w700,
-                            letterSpacing: -0.5,
+                        const SizedBox(height: 4),
+                        Text(
+                          'Hi, $firstName',
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.8,
+                            color: Color(0xFF17211A),
                           ),
                         ),
                       ],
                     ),
                   ),
                   GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(),
-      ),
-    );
-  },
-  child: CircleAvatar(
-    radius: 24,
-    backgroundColor: const Color(0xFFDCEBDD),
-    child: Icon(
-      Icons.person_outline,
-      color: Colors.green.shade700,
-    ),
-  ),
-),
+                    onTap: _openProfile,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCECDD),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFF4F8D60),
+                        size: 25,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
 
           SliverPadding(
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            sliver:
-                SliverToBoxAdapter(
-              child:
-                  _TodayProgressCard(
-  completedTasks: _completedTasks,
-  progress: _progress,
-),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                height: 58,
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.035),
+                      blurRadius: 16,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF3EC),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _dateLabel(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF467B53),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'Today',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 21),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ),
             ),
           ),
 
           SliverPadding(
-            padding:
-                const EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              8,
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+            sliver: SliverToBoxAdapter(
+              child: _TodayProgressCard(
+                completedTasks: _completedTasks,
+                progress: _progress,
+              ),
             ),
-            sliver:
-                SliverToBoxAdapter(
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+            sliver: SliverToBoxAdapter(
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Today',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
+                    'Quick actions',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
                   Text(
-                    'View plan',
+                    'Stay consistent',
                     style: TextStyle(
-                      color:
-                          Colors.green.shade700,
-                      fontWeight:
-                          FontWeight.w600,
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1005,129 +1093,142 @@ double get _progress => _completedTasks / 3;
           ),
 
           SliverPadding(
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 20,
-            ),
-            sliver: SliverList(
-              delegate:
-                  SliverChildListDelegate(
-                [
-                  _TaskCard(
-                    title:
-                        'Chapter 1 — IP',
-                    subject:
-                        'Information Practices',
-                    duration: '60 min',
-                    completed: _chapter1Completed,
-                    onToggle: () {
-                    setState(() {
-                    _chapter1Completed = !_chapter1Completed;
-                  });
-                  },
-                  onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const FocusScreen(
-                            taskTitle: 'Chapter 1 — IP',
-                          subject: 'Information Practices',
-                          durationMinutes: 60,
-                        ),
-                        ),
-                      );
-                    },
-                  ),
-                  _TaskCard(
-                    title:
-                        'Chapter 2 — IP',
-                    subject:
-                        'Information Practices',
-                    duration: '45 min',
-                    completed: _chapter2Completed,
-                    onToggle: () {
-                    setState(() {
-                    _chapter2Completed = !_chapter2Completed;
-                   });
-                   },
-                  onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const FocusScreen(
-  taskTitle: 'Chapter 2 — IP',
-  subject: 'Information Practices',
-  durationMinutes: 45,
-),
-                        ),
-                      );
-                    },
-                  ),
-                  _TaskCard(
-                    title:
-                        'Practice SQL queries',
-                    subject: 'Database',
-                    duration: '30 min',
-                    completed: _sqlCompleted,
-                    onToggle: () {
-                  setState(() {
-                  _sqlCompleted = !_sqlCompleted;
-                });
-                },
-                onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const FocusScreen(
-  taskTitle: 'Practice SQL queries',
-  subject: 'Database',
-  durationMinutes: 30,
-),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverPadding(
-            padding:
-                const EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              30,
-            ),
-            sliver:
-                SliverToBoxAdapter(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
                   Expanded(
-                    child: _StatCard(
-                      icon: Icons
-                          .local_fire_department_outlined,
-                      value: '7',
-                      label: 'Day streak',
+                    child: _QuickDashboardCard(
+                      icon: Icons.timer_rounded,
+                      title: 'Focus',
+                      subtitle: 'Start a session',
+                      tint: const Color(0xFFE9F3EB),
+                      iconColor: const Color(0xFF4E8F5E),
+                      onTap: () => _openFocus(
+                        'Chapter 2 — IP',
+                        'Information Practices',
+                        45,
+                      ),
                     ),
                   ),
-                  const SizedBox(
-                    width: 12,
-                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _StatCard(
-                      icon:
-                          Icons.timer_outlined,
-                      value: '1h 35m',
-                      label:
-                          'Studied today',
+                    child: _QuickDashboardCard(
+                      icon: Icons.local_fire_department_rounded,
+                      title: '7 days',
+                      subtitle: 'Study streak',
+                      tint: const Color(0xFFFFF0DD),
+                      iconColor: const Color(0xFFF08A32),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StudyStreakScreen(),
+                        ),
+                      ),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Today's plan",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    '$_completedTasks/3 done',
+                    style: const TextStyle(
+                      color: Color(0xFF4E8F5E),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _TaskCard(
+                  title: 'Chapter 1 — IP',
+                  subject: 'Information Practices',
+                  duration: '60 min',
+                  completed: _chapter1Completed,
+                  onToggle: () => setState(() => _chapter1Completed = !_chapter1Completed),
+                  onTap: () => _openFocus('Chapter 1 — IP', 'Information Practices', 60),
+                ),
+                _TaskCard(
+                  title: 'Chapter 2 — IP',
+                  subject: 'Information Practices',
+                  duration: '45 min',
+                  completed: _chapter2Completed,
+                  onToggle: () => setState(() => _chapter2Completed = !_chapter2Completed),
+                  onTap: () => _openFocus('Chapter 2 — IP', 'Information Practices', 45),
+                ),
+                _TaskCard(
+                  title: 'Practice SQL queries',
+                  subject: 'Database',
+                  duration: '30 min',
+                  completed: _sqlCompleted,
+                  onToggle: () => setState(() => _sqlCompleted = !_sqlCompleted),
+                  onTap: () => _openFocus('Practice SQL queries', 'Database', 30),
+                ),
+              ]),
+            ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 34),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF3EC),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.lightbulb_rounded,
+                        color: Color(0xFF5B9B70),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Small steps, big progress.',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Focus on one task at a time and keep your momentum going.',
+                            style: TextStyle(color: Color(0xFF637066), fontSize: 12, height: 1.35),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1137,8 +1238,61 @@ double get _progress => _completedTasks / 3;
   }
 }
 
-class _TodayProgressCard
-    extends StatelessWidget {
+class _QuickDashboardCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color tint;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _QuickDashboardCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.tint,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(height: 13),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayProgressCard extends StatelessWidget {
   final int completedTasks;
   final double progress;
 
@@ -1150,135 +1304,109 @@ class _TodayProgressCard
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        gradient:
-            const LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF6FA67A),
-            Color(0xFF568D64),
-          ],
+          colors: [Color(0xFF78B685), Color(0xFF4E8F5E)],
         ),
-        borderRadius:
-            BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4E8F5E).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white
-                      .withValues(
-                    alpha: 0.18,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.auto_graph,
-                  color: Colors.white,
-                ),
-              ),
-              const Spacer(),
-              const Text(
-                'TODAY',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontWeight:
-                      FontWeight.w700,
-                  fontSize: 12,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 22,
-          ),
-
-          const Text(
-            'Your study progress',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight:
-                  FontWeight.w700,
-            ),
-          ),
-
-          const SizedBox(
-            height: 6,
-          ),
-
-          Text(
-         '$completedTasks of 3 planned tasks completed',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
-          ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
-          ClipRRect(
-            borderRadius:
-                BorderRadius.circular(20),
-            child:
-                LinearProgressIndicator(
-              value: progress,
-            minHeight: 9,
-          backgroundColor:
-      Colors.white24,
-      valueColor:
-      AlwaysStoppedAnimation<Color>(
-    Colors.white,
-  ),
-),
-          ),
-
           SizedBox(
-            height: 10,
+            width: 112,
+            height: 112,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 108,
+                  height: 108,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 10,
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${(progress * 100).round()}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Text(
+                      'done',
+                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment
-                    .spaceBetween,
-            children: [
-              Text(
-            '${(progress * 100).round()}% complete',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight:
-                      FontWeight.w600,
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: const Text(
+                        'TODAY',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Text(
-                'Keep going!',
-                style: TextStyle(
-                  color: Colors.white70,
+                const SizedBox(height: 13),
+                const Text(
+                  'Your study progress',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    height: 1.05,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  '$completedTasks of 3 planned tasks completed',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 }
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -3568,176 +3696,105 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 12,
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(20),
-        child: Padding(
-          padding:
-              const EdgeInsets.all(15),
-          child: Row(
-            children: [
-              GestureDetector(
-              onTap: onToggle,
-              child:Container(
-                width: 28,
-                height: 28,
-                decoration:
-                    BoxDecoration(
-                  shape:
-                      BoxShape.circle,
-                  color: completed
-                      ? const Color(
-                          0xFF6FA67A,
-                        )
-                      : Colors.transparent,
-                  border: Border.all(
-                    color: completed
-                        ? const Color(
-                            0xFF6FA67A,
-                          )
-                        : Colors.grey
-                            .shade400,
-                    width: 2,
-                  ),
-                ),
-                child: completed
-                    ? const Icon(
-                        Icons.check,
-                        size: 17,
-                        color:
-                            Colors.white,
-                      )
-                    : null,
-              ),
-              ),
-              const SizedBox(width: 13),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style:
-                          TextStyle(
-                        fontSize: 15,
-                        fontWeight:
-                            FontWeight.w700,
-                        decoration: completed
-                            ? TextDecoration
-                                .lineThrough
-                            : null,
-                        color: completed
-                            ? Colors.grey
-                                .shade500
-                            : Colors.black87,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 4,
-                    ),
-
-                    Text(
-                      subject,
-                      style:
-                          TextStyle(
-                        color: Colors
-                            .grey
-                            .shade600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Text(
-                duration,
-                style:
-                    TextStyle(
-                  color:
-                      Colors.grey.shade600,
-                  fontSize: 12,
-                  fontWeight:
-                      FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color:
-                    Colors.grey.shade400,
-              ),
-            ],
-          ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: completed ? const Color(0xFFD9E9DC) : const Color(0xFFF0F1EE),
         ),
       ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _StatCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding:
-            const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              color:
-                  const Color(0xFF5B9067),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: onToggle,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: completed ? const Color(0xFF69A878) : Colors.transparent,
+                      border: Border.all(
+                        color: completed ? const Color(0xFF69A878) : const Color(0xFFC9CEC9),
+                        width: 2,
+                      ),
+                    ),
+                    child: completed
+                        ? const Icon(Icons.check_rounded, size: 18, color: Colors.white)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: completed ? Colors.grey.shade500 : const Color(0xFF202820),
+                          decoration: completed ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(Icons.book_outlined, size: 13, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              subject,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 11.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F6F2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF5B9B70)),
+                      const SizedBox(width: 4),
+                      Text(
+                        duration,
+                        style: const TextStyle(
+                          color: Color(0xFF4F7F5A),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+              ],
             ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              value,
-              style:
-                  const TextStyle(
-                fontSize: 21,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-
-            const SizedBox(height: 3),
-
-            Text(
-              label,
-              style:
-                  TextStyle(
-                color:
-                    Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
