@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -12,6 +13,12 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  final configuration = PurchasesConfiguration(
+    'test_EhOVVopevScdKSKMiuOsWILumyK',
+  );
+
+  await Purchases.configure(configuration);
 
   runApp(const StudyFlowApp());
 }
@@ -1661,14 +1668,13 @@ class _StudyTask {
   String title;
   String subject;
   int durationMinutes;
-  bool completed;
+  bool completed = false;
 
   _StudyTask({
     required this.title,
     required this.subject,
     required this.durationMinutes,
-    this.completed = false,
-  });
+   });
 }
 
 class PlannerScreen extends StatefulWidget {
@@ -2744,6 +2750,9 @@ class _NoteCard extends StatelessWidget {
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
+  Future<void> _openProPaywall(BuildContext context) async {
+  await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+}
 
   void _open(BuildContext context, String title) {
     final pages = <String, Widget>{
@@ -2796,6 +2805,12 @@ class MoreScreen extends StatelessWidget {
             title: 'Motivation',
             subtitle: 'Daily quotes and study tips',
             onTap: () => _open(context, 'Motivation'),
+          ),
+          _MoreTile(
+            icon: Icons.workspace_premium_outlined,
+            title: 'StudyFlow Pro',
+            subtitle: 'Unlock advanced study features',
+            onTap: () => _openProPaywall(context),
           ),
           const SizedBox(height: 4),
           Card(
