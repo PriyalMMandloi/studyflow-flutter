@@ -2750,8 +2750,19 @@ class _NoteCard extends StatelessWidget {
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
-  Future<void> _openProPaywall(BuildContext context) async {
-  await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+Future<void> _openAnalytics(BuildContext context) async {
+  final customerInfo = await Purchases.getCustomerInfo();
+
+  final isPro =
+      customerInfo.entitlements.active.containsKey('studyflow_pro');
+
+  if (!context.mounted) return;
+
+  if (isPro) {
+    _open(context, 'Analytics');
+  } else {
+    await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+  }
 }
 
   void _open(BuildContext context, String title) {
@@ -2792,7 +2803,7 @@ class MoreScreen extends StatelessWidget {
             icon: Icons.bar_chart_outlined,
             title: 'Analytics',
             subtitle: 'View your weekly study progress',
-            onTap: () => _open(context, 'Analytics'),
+            onTap: () => _openAnalytics(context),
           ),
           _MoreTile(
             icon: Icons.local_fire_department_outlined,
@@ -2805,13 +2816,7 @@ class MoreScreen extends StatelessWidget {
             title: 'Motivation',
             subtitle: 'Daily quotes and study tips',
             onTap: () => _open(context, 'Motivation'),
-          ),
-          _MoreTile(
-            icon: Icons.workspace_premium_outlined,
-            title: 'StudyFlow Pro',
-            subtitle: 'Unlock advanced study features',
-            onTap: () => _openProPaywall(context),
-          ),
+           ),
           const SizedBox(height: 4),
           Card(
             margin: const EdgeInsets.only(bottom: 12),
