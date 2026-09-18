@@ -14,13 +14,33 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final configuration = PurchasesConfiguration(
-    'test_EhOVVopevScdKSKMiuOsWILumyK',
+  const revenueCatApiKey = String.fromEnvironment(
+    'REVENUECAT_ANDROID_API_KEY',
+    defaultValue: 'test_EhOVVopevScdKSKMiuOsWILumyK',
   );
+  final configuration = PurchasesConfiguration(revenueCatApiKey);
 
   await Purchases.configure(configuration);
 
   runApp(const StudyFlowApp());
+}
+
+Future<void> _syncRevenueCatUser(User? user) async {
+  try {
+    if (user == null) {
+      await Purchases.logOut();
+    } else {
+      await Purchases.logIn(user.uid);
+    }
+  } catch (_) {
+  }
+}
+
+Future<void> _logOutRevenueCat() async {
+  try {
+    await Purchases.logOut();
+  } catch (_) {
+  }
 }
 
 class MyApp extends StudyFlowApp {
@@ -110,8 +130,7 @@ class StudyFlowData extends ChangeNotifier {
   int currentStreak = 7;
   int longestStreak = 7;
 
-  // Mon-Sun study minutes used by the Analytics chart.
-  final List<int> weeklyMinutes = [40, 60, 35, 80, 55, 95, 0];
+  final List<int> weeklyMinutes = List<int>.filled(7, 0);
 
   void setGoal(int minutes) {
     goalMinutes = minutes;
@@ -119,20 +138,23 @@ class StudyFlowData extends ChangeNotifier {
   }
 
   void recordTask({required bool completed, required int minutes}) {
+    final dayIndex = DateTime.now().weekday - 1;
     if (completed) {
       completedTasks++;
       completedMinutes += minutes;
+      weeklyMinutes[dayIndex] += minutes;
     } else {
       if (completedTasks > 0) completedTasks--;
       completedMinutes = (completedMinutes - minutes).clamp(0, 100000).toInt();
+      weeklyMinutes[dayIndex] =
+          (weeklyMinutes[dayIndex] - minutes).clamp(0, 100000).toInt();
     }
-    weeklyMinutes[6] = completedMinutes;
     notifyListeners();
   }
 
   void recordFocusSession(int minutes) {
     completedMinutes += minutes;
-    weeklyMinutes[6] = completedMinutes;
+    weeklyMinutes[DateTime.now().weekday - 1] += minutes;
     if (completedMinutes > 0 && currentStreak == 0) {
       currentStreak = 1;
     }
@@ -144,8 +166,29 @@ class StudyFlowData extends ChangeNotifier {
       goalMinutes <= 0 ? 0.0 : (completedMinutes / goalMinutes).clamp(0.0, 1.0).toDouble();
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  StreamSubscription<User?>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
+      _syncRevenueCatUser,
+    );
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1625,11 +1668,70 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              Card(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  leading: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE7F0E8),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.restore_outlined,
+                      color: Color(0xFF5B9067),
+                    ),
+                  ),
+                  title: const Text(
+                    'Restore purchases',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text('Restore Pro access on this account'),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    try {
+                      final customerInfo = await Purchases.restorePurchases();
+                      final restored = customerInfo.entitlements.active
+                          .containsKey('studyflow_pro');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              restored
+                                  ? 'Pro access restored.'
+                                  : 'No active Pro purchase found.',
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Could not restore purchases. Try again.'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton.icon(
                   onPressed: () async {
+                    await _logOutRevenueCat();
                     await FirebaseAuth.instance.signOut();
 
                     if (context.mounted) {
@@ -2751,17 +2853,33 @@ class _NoteCard extends StatelessWidget {
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 Future<void> _openAnalytics(BuildContext context) async {
-  final customerInfo = await Purchases.getCustomerInfo();
-
-  final isPro =
-      customerInfo.entitlements.active.containsKey('studyflow_pro');
+  bool isPro = false;
+  try {
+    final customerInfo = await Purchases.getCustomerInfo();
+    isPro = customerInfo.entitlements.active.containsKey('studyflow_pro');
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not verify Pro access. Try again.')),
+      );
+    }
+    return;
+  }
 
   if (!context.mounted) return;
 
   if (isPro) {
     _open(context, 'Analytics');
   } else {
-    await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+    try {
+      await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The Pro screen is unavailable right now.')),
+        );
+      }
+    }
   }
 }
 
@@ -2844,6 +2962,7 @@ Future<void> _openAnalytics(BuildContext context) async {
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () async {
+                await _logOutRevenueCat();
                 await FirebaseAuth.instance.signOut();
               },
             ),
