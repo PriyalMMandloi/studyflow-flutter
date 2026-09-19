@@ -20,7 +20,9 @@ Future<void> main() async {
   );
   final configuration = PurchasesConfiguration(revenueCatApiKey);
 
-  await Purchases.configure(configuration);
+  if (!await Purchases.isConfigured) {
+    await Purchases.configure(configuration);
+  }
 
   runApp(const StudyFlowApp());
 }
@@ -127,10 +129,55 @@ class StudyFlowData extends ChangeNotifier {
   int goalMinutes = 120;
   int completedMinutes = 0;
   int completedTasks = 0;
-  int currentStreak = 7;
-  int longestStreak = 7;
 
   final List<int> weeklyMinutes = List<int>.filled(7, 0);
+  final Map<DateTime, int> _activityCounts = {};
+
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  void _updateActivity(DateTime date, int change) {
+    final day = _dateOnly(date);
+    final count = (_activityCounts[day] ?? 0) + change;
+    if (count > 0) {
+      _activityCounts[day] = count;
+    } else {
+      _activityCounts.remove(day);
+    }
+  }
+
+  bool hasActivityOn(DateTime date) =>
+      (_activityCounts[_dateOnly(date)] ?? 0) > 0;
+
+  int get currentStreak {
+    final today = _dateOnly(DateTime.now());
+    if (!hasActivityOn(today)) return 0;
+
+    var streak = 0;
+    var day = today;
+    while (hasActivityOn(day)) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  int get longestStreak {
+    if (_activityCounts.isEmpty) return 0;
+
+    final dates = _activityCounts.keys.toList()..sort();
+    var longest = 1;
+    var streak = 1;
+    for (var i = 1; i < dates.length; i++) {
+      if (dates[i].difference(dates[i - 1]).inDays == 1) {
+        streak++;
+        if (streak > longest) longest = streak;
+      } else {
+        streak = 1;
+      }
+    }
+    return longest;
+  }
 
   void setGoal(int minutes) {
     goalMinutes = minutes;
@@ -143,11 +190,13 @@ class StudyFlowData extends ChangeNotifier {
       completedTasks++;
       completedMinutes += minutes;
       weeklyMinutes[dayIndex] += minutes;
+      _updateActivity(DateTime.now(), 1);
     } else {
       if (completedTasks > 0) completedTasks--;
       completedMinutes = (completedMinutes - minutes).clamp(0, 100000).toInt();
       weeklyMinutes[dayIndex] =
           (weeklyMinutes[dayIndex] - minutes).clamp(0, 100000).toInt();
+      _updateActivity(DateTime.now(), -1);
     }
     notifyListeners();
   }
@@ -155,10 +204,7 @@ class StudyFlowData extends ChangeNotifier {
   void recordFocusSession(int minutes) {
     completedMinutes += minutes;
     weeklyMinutes[DateTime.now().weekday - 1] += minutes;
-    if (completedMinutes > 0 && currentStreak == 0) {
-      currentStreak = 1;
-    }
-    if (currentStreak > longestStreak) longestStreak = currentStreak;
+    _updateActivity(DateTime.now(), 1);
     notifyListeners();
   }
 
@@ -1457,8 +1503,57 @@ class _TodayProgressCard extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isRestoring = false;
+
+  Future<void> _restorePurchases() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _isRestoring) return;
+
+    setState(() {
+      _isRestoring = true;
+    });
+
+    try {
+      await Purchases.logIn(user.uid);
+      final customerInfo = await Purchases.restorePurchases();
+      final restored = customerInfo.entitlements.active
+          .containsKey('studyflow_pro');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              restored
+                  ? 'StudyFlow Pro restored successfully.'
+                  : 'No active StudyFlow Pro purchase was found for this account.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not restore purchases. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRestoring = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1694,33 +1789,14 @@ class ProfileScreen extends StatelessWidget {
                     padding: EdgeInsets.only(top: 4),
                     child: Text('Restore Pro access on this account'),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    try {
-                      final customerInfo = await Purchases.restorePurchases();
-                      final restored = customerInfo.entitlements.active
-                          .containsKey('studyflow_pro');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              restored
-                                  ? 'Pro access restored.'
-                                  : 'No active Pro purchase found.',
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (_) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Could not restore purchases. Try again.'),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                  trailing: _isRestoring
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right),
+                  onTap: _isRestoring ? null : _restorePurchases,
                 ),
               ),
 
@@ -1916,10 +1992,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
       },
     );
 
-    titleController.dispose();
-    subjectController.dispose();
-    durationController.dispose();
-
     if (task != null && mounted) {
       setState(() {
         _tasks.add(task);
@@ -1965,37 +2037,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
             const SizedBox(height: 24),
             Row(
               children: [
-                Expanded(
-                  child: _PlannerDate(
-                    day: '16',
-                    label: 'Today',
-                    selected: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: _PlannerDate(
-                    day: '17',
-                    label: 'Thu',
-                    selected: false,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: _PlannerDate(
-                    day: '18',
-                    label: 'Fri',
-                    selected: false,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: _PlannerDate(
-                    day: '19',
-                    label: 'Sat',
-                    selected: false,
-                  ),
-                ),
+                ...List.generate(4, (index) {
+                  final date = DateTime.now().add(Duration(days: index));
+                  final label = index == 0
+                      ? 'Today'
+                      : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][
+                          date.weekday - 1];
+                  return [
+                    if (index > 0) const SizedBox(width: 10),
+                    Expanded(
+                      child: _PlannerDate(
+                        day: '${date.day}',
+                        label: label,
+                        selected: index == 0,
+                      ),
+                    ),
+                  ];
+                }).expand((children) => children),
               ],
             ),
             const SizedBox(height: 24),
@@ -2752,6 +2810,25 @@ class _NotesScreenState extends State<NotesScreen> {
                     title: note['title'] ?? '',
                     subject: note['subject'] ?? '',
                     preview: note['preview'] ?? '',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NoteDetailScreen(
+                            title: note['title'] ?? '',
+                            subject: note['subject'] ?? '',
+                            content: note['preview'] ?? '',
+                            onSave: (title, subject, content) {
+                              setState(() {
+                                note['title'] = title;
+                                note['subject'] = subject;
+                                note['preview'] = content;
+                              });
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -2767,11 +2844,13 @@ class _NoteCard extends StatelessWidget {
   final String title;
   final String subject;
   final String preview;
+  final VoidCallback onTap;
 
   const _NoteCard({
     required this.title,
     required this.subject,
     required this.preview,
+    required this.onTap,
   });
 
   @override
@@ -2780,10 +2859,13 @@ class _NoteCard extends StatelessWidget {
       margin: const EdgeInsets.only(
         bottom: 12,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Row(
-          children: [
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Row(
+            children: [
             Container(
               width: 46,
               height: 46,
@@ -2838,7 +2920,191 @@ class _NoteCard extends StatelessWidget {
                 ],
               ),
             ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NoteDetailScreen extends StatefulWidget {
+  final String title;
+  final String subject;
+  final String content;
+  final void Function(String title, String subject, String content) onSave;
+
+  const NoteDetailScreen({
+    super.key,
+    required this.title,
+    required this.subject,
+    required this.content,
+    required this.onSave,
+  });
+
+  @override
+  State<NoteDetailScreen> createState() => _NoteDetailScreenState();
+}
+
+class _NoteDetailScreenState extends State<NoteDetailScreen> {
+  late String _title = widget.title;
+  late String _subject = widget.subject;
+  late String _content = widget.content;
+
+  Future<void> _showEditDialog() async {
+    final titleController = TextEditingController(text: _title);
+    final subjectController = TextEditingController(text: _subject);
+    final contentController = TextEditingController(text: _content);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Edit Note',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    prefixIcon: const Icon(Icons.title_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: subjectController,
+                  decoration: InputDecoration(
+                    labelText: 'Subject',
+                    prefixIcon: const Icon(Icons.book_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: contentController,
+                  minLines: 4,
+                  maxLines: 8,
+                  decoration: InputDecoration(
+                    labelText: 'Note',
+                    prefixIcon: const Icon(Icons.notes_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final title = titleController.text.trim();
+                final subject = subjectController.text.trim();
+                final content = contentController.text.trim();
+
+                if (title.isEmpty || subject.isEmpty || content.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please fill in all fields.'),
+                    ),
+                  );
+                  return;
+                }
+
+                setState(() {
+                  _title = title;
+                  _subject = subject;
+                  _content = content;
+                });
+                widget.onSave(title, subject, content);
+                Navigator.pop(dialogContext);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF6FA67A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Save Changes'),
+            ),
           ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Note',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Edit note',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _showEditDialog,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _subject,
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  _content,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -3571,15 +3837,18 @@ class StudyStreakScreen extends StatelessWidget {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: const [
-                      _StreakDay(day: 'M', active: true),
-                      _StreakDay(day: 'T', active: true),
-                      _StreakDay(day: 'W', active: true),
-                      _StreakDay(day: 'T', active: true),
-                      _StreakDay(day: 'F', active: true),
-                      _StreakDay(day: 'S', active: true),
-                      _StreakDay(day: 'S', active: false),
-                    ],
+                    children: List.generate(7, (index) {
+                      final today = DateTime.now();
+                      final monday = today.subtract(
+                        Duration(days: today.weekday - 1),
+                      );
+                      final date = monday.add(Duration(days: index));
+                      const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                      return _StreakDay(
+                        day: labels[index],
+                        active: data.hasActivityOn(date),
+                      );
+                    }),
                   ),
                 ),
               ),
