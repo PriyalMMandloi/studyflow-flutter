@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,15 +17,26 @@ Future<void> main() async {
 
   const revenueCatApiKey = String.fromEnvironment(
     'REVENUECAT_ANDROID_API_KEY',
-    defaultValue: 'test_EhOVVopevScdKSKMiuOsWILumyK',
   );
-  final configuration = PurchasesConfiguration(revenueCatApiKey);
-
-  if (!await Purchases.isConfigured) {
-    await Purchases.configure(configuration);
-  }
 
   runApp(const StudyFlowApp());
+  unawaited(_configureRevenueCat(revenueCatApiKey));
+}
+
+Future<void> _configureRevenueCat(String apiKey) async {
+  try {
+    if (apiKey.isEmpty) return;
+
+    if (!await Purchases.isConfigured) {
+      await Purchases.configure(PurchasesConfiguration(apiKey));
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await Purchases.logIn(user.uid);
+    }
+  } catch (_) {
+  }
 }
 
 Future<void> _syncRevenueCatUser(User? user) async {
@@ -54,73 +66,583 @@ class StudyFlowApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'StudyFlow',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF7F8F5),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF5B9B70),
-          brightness: Brightness.light,
-        ),
-        fontFamily: 'Roboto',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF7F8F5),
-          foregroundColor: Color(0xFF17211A),
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          centerTitle: false,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          color: Colors.white,
-          margin: EdgeInsets.zero,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(24)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            borderSide: BorderSide(color: Color(0xFF5B9B70), width: 1.5),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF69A878),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            minimumSize: const Size.fromHeight(52),
-          ),
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          indicatorColor: const Color(0xFFDCECDD),
-          labelTextStyle: WidgetStatePropertyAll(
-            const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: StudyFlowThemeController.instance,
+      builder: (context, themeMode, _) => MaterialApp(
+        title: 'StudyFlow',
+        debugShowCheckedModeBanner: false,
+        theme: StudyFlowTheme.lightTheme,
+        darkTheme: StudyFlowTheme.lightTheme,
+        themeMode: themeMode,
+        home: const AuthGate(),
       ),
-      home: const AuthGate(),
     );
   }
 }
 
+class StudyFlowThemeController extends ValueNotifier<ThemeMode> {
+  StudyFlowThemeController._() : super(ThemeMode.light);
+  static final instance = StudyFlowThemeController._();
+}
+
+class StudyFlowTheme {
+  static const Color backgroundLight = Color(0xFFF4F6F2);
+  static const Color backgroundWarm = Color(0xFFF8F5F1);
+  static const Color glassFill = Color(0xCCFFFFFF);
+  static const Color glassBorder = Color(0x33FFFFFF);
+  static const Color sage = Color(0xFF5C8D72);
+  static const Color sageStrong = Color(0xFF3F7758);
+  static const Color sageSoft = Color(0xFFEAF5EE);
+  static const Color mint = Color(0xFFBFE6D1);
+  static const Color charcoal = Color(0xFF1B2A22);
+  static const Color muted = Color(0xFF607067);
+  static const Color cream = Color(0xFFF9F7F3);
+  static const Color amber = Color(0xFFE9B85D);
+  static const Color danger = Color(0xFFDA6A5D);
+
+  static ThemeData get lightTheme {
+    final base = ThemeData(
+      useMaterial3: true,
+      fontFamily: 'Roboto',
+      scaffoldBackgroundColor: backgroundLight,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: sage,
+        brightness: Brightness.light,
+        primary: sage,
+        secondary: sageStrong,
+        surface: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: charcoal,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+      ),
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.55),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: TextStyle(color: muted.withValues(alpha: 0.7), fontSize: 14),
+        labelStyle: const TextStyle(color: muted, fontSize: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: Color(0x1F647067)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: Color(0x1F647067)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: sage, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: danger, width: 1.2),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: sage,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: const Color(0xFFD8E9DE),
+        labelTextStyle: WidgetStatePropertyAll(
+          const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+
+    return base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        headlineLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: charcoal, letterSpacing: -0.9),
+        headlineMedium: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: charcoal, letterSpacing: -0.7),
+        titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: charcoal),
+        titleMedium: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: charcoal),
+        bodyLarge: const TextStyle(fontSize: 16, color: charcoal),
+        bodyMedium: const TextStyle(fontSize: 14, color: charcoal),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white.withValues(alpha: 0.75),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        titleTextStyle: const TextStyle(
+          color: charcoal,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xCC1F2B25),
+        contentTextStyle: const TextStyle(color: Colors.white),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+    );
+  }
+}
+
+class StudyFlowBackground extends StatelessWidget {
+  final Widget child;
+  const StudyFlowBackground({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            StudyFlowTheme.backgroundWarm,
+            StudyFlowTheme.backgroundLight,
+            Color(0xFFEFF5F0),
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -60,
+            right: -40,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDBEEDC).withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(110),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 80,
+            left: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8E2D6).withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(90),
+              ),
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String title;
+  final List<Widget>? actions;
+  final bool showBack;
+  const GlassAppBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.showBack = true,
+  });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      automaticallyImplyLeading: showBack,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      actions: actions,
+    );
+  }
+}
+
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final double radius;
+  final bool blur;
+  final Color? color;
+  final List<BoxShadow>? boxShadow;
+  final Border? border;
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.padding,
+    this.margin,
+    this.radius = 28,
+    this.blur = true,
+    this.color,
+    this.boxShadow,
+    this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? Colors.white.withValues(alpha: 0.38);
+    final decoration = BoxDecoration(
+      color: effectiveColor,
+      borderRadius: BorderRadius.circular(radius),
+      border: border ?? Border.all(color: const Color(0x26FFFFFF), width: 1),
+      boxShadow: boxShadow ?? [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    );
+
+    final content = Container(
+      margin: margin,
+      padding: padding,
+      decoration: decoration,
+      child: child,
+    );
+
+    if (!blur) return content;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: content,
+      ),
+    );
+  }
+}
+
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final double radius;
+  final Color? color;
+  final VoidCallback? onTap;
+  final Border? border;
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.margin,
+    this.radius = 24,
+    this.color,
+    this.onTap,
+    this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final card = GlassContainer(
+      padding: padding ?? const EdgeInsets.all(18),
+      margin: margin,
+      radius: radius,
+      color: color ?? Colors.white.withValues(alpha: 0.42),
+      border: border ?? Border.all(color: const Color(0x3DFFFFFF), width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+      ],
+      child: child,
+    );
+
+    if (onTap == null) return card;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(radius),
+        onTap: onTap,
+        child: card,
+      ),
+    );
+  }
+}
+
+class GlassButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final bool filled;
+  final bool fullWidth;
+  final double height;
+  const GlassButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+    this.filled = true,
+    this.fullWidth = true,
+    this.height = 52,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = FilledButton.icon(
+      onPressed: onPressed,
+      icon: icon == null ? const SizedBox.shrink() : Icon(icon),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: filled ? StudyFlowTheme.sage : Colors.white.withValues(alpha: 0.45),
+        foregroundColor: filled ? Colors.white : StudyFlowTheme.charcoal,
+        minimumSize: Size.fromHeight(height),
+        side: filled ? null : const BorderSide(color: Color(0x2A5C8D72), width: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+      ),
+    );
+
+    if (!fullWidth) {
+      return button;
+    }
+
+    return SizedBox(width: double.infinity, child: button);
+  }
+}
+
+class GlassTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String labelText;
+  final String? hintText;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final Widget? prefixIcon;
+  final Widget? suffixIcon;
+  final TextInputAction? textInputAction;
+  final void Function(String)? onSubmitted;
+  const GlassTextField({
+    super.key,
+    required this.controller,
+    required this.labelText,
+    this.hintText,
+    this.obscureText = false,
+    this.keyboardType,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.textInputAction,
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
+      ),
+    );
+  }
+}
+
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final TextAlign? textAlign;
+  const SectionHeader({super.key, required this.title, this.subtitle, this.textAlign});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 12.5, fontWeight: FontWeight.w600), textAlign: textAlign),
+        ],
+      ],
+    );
+  }
+}
+
+class StudyFlowNavBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  const StudyFlowNavBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      child: GlassContainer(
+        radius: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        color: Colors.white.withValues(alpha: 0.34),
+        child: NavigationBar(
+          height: 70,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: onDestinationSelected,
+          backgroundColor: Colors.transparent,
+          indicatorColor: const Color(0xFFE2F0E5),
+          indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          elevation: 0,
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.home_outlined, size: 22), selectedIcon: Icon(Icons.home_rounded, size: 22), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.calendar_today_outlined, size: 22), selectedIcon: Icon(Icons.calendar_today_rounded, size: 22), label: 'Plan'),
+            NavigationDestination(icon: Icon(Icons.timer_outlined, size: 22), selectedIcon: Icon(Icons.timer_rounded, size: 22), label: 'Focus'),
+            NavigationDestination(icon: Icon(Icons.sticky_note_2_outlined, size: 22), selectedIcon: Icon(Icons.sticky_note_2_rounded, size: 22), label: 'Notes'),
+            NavigationDestination(icon: Icon(Icons.grid_view_outlined, size: 22), selectedIcon: Icon(Icons.grid_view_rounded, size: 22), label: 'More'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProgressPill extends StatelessWidget {
+  final String text;
+  final Color? color;
+  const ProgressPill({super.key, required this.text, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (color ?? StudyFlowTheme.sageSoft).withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color == null ? StudyFlowTheme.sageStrong : Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.05,
+        ),
+      ),
+    );
+  }
+}
+
+class ProgressRing extends StatelessWidget {
+  final double value;
+  final double size;
+  final double strokeWidth;
+  final Color? color;
+  final String? label;
+  const ProgressRing({
+    super.key,
+    required this.value,
+    this.size = 110,
+    this.strokeWidth = 10,
+    this.color,
+    this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ringColor = color ?? StudyFlowTheme.sageStrong;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              value: value.clamp(0.0, 1.0),
+              strokeWidth: strokeWidth,
+              backgroundColor: const Color(0xFFE7EEE9),
+              valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${(value * 100).round()}%', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: StudyFlowTheme.charcoal)),
+              if (label != null) ...[
+                const SizedBox(height: 3),
+                Text(label!, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 11, fontWeight: FontWeight.w600)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StatTile extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color? accent;
+  const StatTile({super.key, required this.icon, required this.value, required this.label, this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: (accent ?? StudyFlowTheme.sageSoft).withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent == null ? StudyFlowTheme.sageStrong : Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.4)),
+                Text(label, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class StudyFlowData extends ChangeNotifier {
   StudyFlowData._();
@@ -371,185 +893,101 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 430,
-              ),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCEBDD),
-                        borderRadius:
-                            BorderRadius.circular(22),
-                      ),
-                      child: const Icon(
-                        Icons.menu_book_rounded,
-                        size: 38,
-                        color: Color(0xFF5B9067),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  const Text(
-                    'Welcome back',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'Sign in to continue your StudyFlow journey.',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 15,
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  TextField(
-                    controller: _emailController,
-                    keyboardType:
-                        TextInputType.emailAddress,
-                    textInputAction:
-                        TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'you@example.com',
-                      prefixIcon: const Icon(
-                        Icons.email_outlined,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller:
-                        _passwordController,
-                    obscureText:
-                        _obscurePassword,
-                    textInputAction:
-                        TextInputAction.done,
-                    onSubmitted: (_) => _login(),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(
-                        Icons.lock_outline,
-                      ),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword =
-                                !_obscurePassword;
-                          });
-                        },
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-
-                  Align(
-                    alignment:
-                        Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : _forgotPassword,
-                      child: const Text(
-                        'Forgot password?',
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: FilledButton(
-                      onPressed:
-                          _loading ? null : _login,
-                      style:
-                          FilledButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFF6FA67A),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight:
-                                    FontWeight.w700,
-                              ),
+    return StudyFlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: GlassContainer(
+                  radius: 32,
+                  padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 78,
+                          height: 78,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFB9D8C0), Color(0xFF85B998)],
                             ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Center(
-                    child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const SignUpScreen(),
-                                ),
-                              );
-                            },
-                      child: const Text(
-                        'New to StudyFlow?  Create an account',
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7FA991).withValues(alpha: 0.25),
+                                blurRadius: 18,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.menu_book_rounded, size: 38, color: Colors.white),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 28),
+                      const Text('Welcome back', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8)),
+                      const SizedBox(height: 8),
+                      Text('Sign in to continue your StudyFlow journey.', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 15, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 28),
+                      GlassTextField(
+                        controller: _emailController,
+                        labelText: 'Email',
+                        hintText: 'you@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        prefixIcon: const Icon(Icons.email_outlined, color: StudyFlowTheme.sageStrong),
+                      ),
+                      const SizedBox(height: 16),
+                      GlassTextField(
+                        controller: _passwordController,
+                        labelText: 'Password',
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _login(),
+                        prefixIcon: const Icon(Icons.lock_outline, color: StudyFlowTheme.sageStrong),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: StudyFlowTheme.muted),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _loading ? null : _forgotPassword,
+                          child: const Text('Forgot password?', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: FilledButton(
+                          onPressed: _loading ? null : _login,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: StudyFlowTheme.sage,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          ),
+                          child: _loading
+                              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: TextButton(
+                          onPressed: _loading ? null : () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen()));
+                          },
+                          child: const Text('New to StudyFlow? Create an account', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -683,208 +1121,89 @@ class _SignUpScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Create account',
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            12,
-            24,
-            24,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 430,
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Start your StudyFlow journey',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  'Create your account to save your study progress.',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                TextField(
-                  controller: _nameController,
-                  textInputAction:
-                      TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Name',
-                    prefixIcon: const Icon(
-                      Icons.person_outline,
+    return StudyFlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const GlassAppBar(title: 'Create account', showBack: true),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: GlassContainer(
+                radius: 32,
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Start your StudyFlow journey', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.7)),
+                    const SizedBox(height: 8),
+                    Text('Create your account to save your study progress.', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14.5, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 28),
+                    GlassTextField(
+                      controller: _nameController,
+                      labelText: 'Name',
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: const Icon(Icons.person_outline, color: StudyFlowTheme.sageStrong),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
+                    const SizedBox(height: 16),
+                    GlassTextField(
+                      controller: _emailController,
+                      labelText: 'Email',
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: const Icon(Icons.email_outlined, color: StudyFlowTheme.sageStrong),
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextField(
-                  controller: _emailController,
-                  keyboardType:
-                      TextInputType.emailAddress,
-                  textInputAction:
-                      TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(
-                      Icons.email_outlined,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextField(
-                  controller:
-                      _passwordController,
-                  obscureText:
-                      _obscurePassword,
-                  textInputAction:
-                      TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                    ),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword =
-                              !_obscurePassword;
-                        });
-                      },
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                    const SizedBox(height: 16),
+                    GlassTextField(
+                      controller: _passwordController,
+                      labelText: 'Password',
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: const Icon(Icons.lock_outline, color: StudyFlowTheme.sageStrong),
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: StudyFlowTheme.muted),
                       ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextField(
-                  controller:
-                      _confirmController,
-                  obscureText:
-                      _obscureConfirm,
-                  textInputAction:
-                      TextInputAction.done,
-                  onSubmitted: (_) =>
-                      _createAccount(),
-                  decoration: InputDecoration(
-                    labelText:
-                        'Confirm password',
-                    prefixIcon: const Icon(
-                      Icons.lock_reset_outlined,
-                    ),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirm =
-                              !_obscureConfirm;
-                        });
-                      },
-                      icon: Icon(
-                        _obscureConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                    const SizedBox(height: 16),
+                    GlassTextField(
+                      controller: _confirmController,
+                      labelText: 'Confirm password',
+                      obscureText: _obscureConfirm,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _createAccount(),
+                      prefixIcon: const Icon(Icons.lock_reset_outlined, color: StudyFlowTheme.sageStrong),
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                        icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: StudyFlowTheme.muted),
                       ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: FilledButton(
-                    onPressed: _loading
-                        ? null
-                        : _createAccount,
-                    style:
-                        FilledButton.styleFrom(
-                      backgroundColor:
-                          const Color(0xFF6FA67A),
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(16),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: FilledButton(
+                        onPressed: _loading ? null : _createAccount,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: StudyFlowTheme.sage,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        ),
+                        child: _loading
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                       ),
                     ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Create Account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight:
-                                  FontWeight.w700,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Center(
-                  child: TextButton(
-                    onPressed: _loading
-                        ? null
-                        : () =>
-                            Navigator.pop(context),
-                    child: const Text(
-                      'Already have an account? Sign in',
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: _loading ? null : () => Navigator.pop(context),
+                        child: const Text('Already have an account? Sign in', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -913,61 +1232,20 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: NavigationBar(
-            height: 72,
+    return StudyFlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: StudyFlowNavBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
               setState(() => _currentIndex = index);
             },
-            backgroundColor: Colors.transparent,
-            indicatorColor: const Color(0xFFDCECDD),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.calendar_today_outlined),
-                selectedIcon: Icon(Icons.calendar_today_rounded),
-                label: 'Plan',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.timer_outlined),
-                selectedIcon: Icon(Icons.timer_rounded),
-                label: 'Focus',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.sticky_note_2_outlined),
-                selectedIcon: Icon(Icons.sticky_note_2_rounded),
-                label: 'Notes',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.grid_view_outlined),
-                selectedIcon: Icon(Icons.grid_view_rounded),
-                label: 'More',
-              ),
-            ],
           ),
         ),
       ),
@@ -986,6 +1264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _chapter1Completed = false;
   bool _chapter2Completed = false;
   bool _sqlCompleted = false;
+  DateTime _selectedDate = DateTime.now();
 
   int get _completedTasks {
     int count = 0;
@@ -1007,8 +1286,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _dateLabel() {
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final now = DateTime.now();
-    return '${weekdays[now.weekday - 1]}, ${now.day}';
+    return '${weekdays[_selectedDate.weekday - 1]}, ${_selectedDate.day}';
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'Choose a study date',
+    );
+
+    if (picked != null && mounted) {
+      setState(() => _selectedDate = picked);
+    }
   }
 
   void _openProfile() {
@@ -1035,9 +1327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final rawName = user?.displayName?.trim();
-    final firstName = rawName != null && rawName.isNotEmpty
-        ? rawName.split(' ').first
-        : 'there';
+    final firstName = rawName != null && rawName.isNotEmpty ? rawName.split(' ').first : 'there';
 
     return SafeArea(
       child: CustomScrollView(
@@ -1052,173 +1342,143 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${_greeting()} 👋',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        Text('${_greeting()} 👋', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
-                        Text(
-                          'Hi, $firstName',
-                          style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.8,
-                            color: Color(0xFF17211A),
-                          ),
-                        ),
+                        Text('Hi, $firstName', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: StudyFlowTheme.charcoal)),
                       ],
                     ),
                   ),
                   GestureDetector(
                     onTap: _openProfile,
                     child: Container(
-                      width: 50,
-                      height: 50,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCECDD),
+                        gradient: const LinearGradient(colors: [Color(0xFFDDEFE2), Color(0xFFBFDCC6)]),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 12,
-                          ),
-                        ],
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.75), width: 3),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 10))],
                       ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: Color(0xFF4F8D60),
-                        size: 25,
-                      ),
+                      child: const Icon(Icons.person_rounded, color: StudyFlowTheme.sageStrong, size: 25),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             sliver: SliverToBoxAdapter(
-              child: Container(
-                height: 58,
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.035),
-                      blurRadius: 16,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAF3EC),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _dateLabel(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF467B53),
+              child: GestureDetector(
+                onTap: _pickDate,
+                child: GlassContainer(
+                  radius: 20,
+                  padding: const EdgeInsets.all(7),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF5EE),
+                            borderRadius: BorderRadius.circular(15),
                           ),
+                          alignment: Alignment.center,
+                          child: Text(_dateLabel(), style: const TextStyle(fontWeight: FontWeight.w800, color: StudyFlowTheme.sageStrong)),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Today',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Expanded(
+                        child: Center(
+                          child: Text('Today', style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w700)),
                         ),
                       ),
-                    ),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 21),
-                    const SizedBox(width: 8),
-                  ],
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 21, color: StudyFlowTheme.muted),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
             sliver: SliverToBoxAdapter(
-              child: _TodayProgressCard(
-                completedTasks: _completedTasks,
-                progress: _progress,
+              child: GlassCard(
+                radius: 30,
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                child: Row(
+                  children: [
+                    ProgressRing(value: _progress, size: 112, strokeWidth: 10, color: const Color(0xFF4F8D60)),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ProgressPill(text: 'TODAY', color: Colors.white),
+                          const SizedBox(height: 12),
+                          const Text('Your study progress', style: TextStyle(color: StudyFlowTheme.charcoal, fontSize: 22, height: 1.05, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 8),
+                          Text('$_completedTasks of 3 planned tasks completed', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
             sliver: SliverToBoxAdapter(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Quick actions',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    'Stay consistent',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  const Text('Quick actions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+                  Text('Stay consistent', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 12, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
                   Expanded(
-                    child: _QuickDashboardCard(
-                      icon: Icons.timer_rounded,
-                      title: 'Focus',
-                      subtitle: 'Start a session',
-                      tint: const Color(0xFFE9F3EB),
-                      iconColor: const Color(0xFF4E8F5E),
-                      onTap: () => _openFocus(
-                        'Chapter 2 — IP',
-                        'Information Practices',
-                        45,
+                    child: GlassCard(
+                      radius: 22,
+                      onTap: () => _openFocus('Chapter 2 — IP', 'Information Practices', 45),
+                      child: Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(width: 42, height: 42, decoration: BoxDecoration(color: const Color(0xFFEAF5EE), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.timer_rounded, color: StudyFlowTheme.sageStrong)),
+                            const SizedBox(height: 13),
+                            const Text('Focus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 3),
+                            Text('Start a session', style: TextStyle(fontSize: 11.5, color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _QuickDashboardCard(
-                      icon: Icons.local_fire_department_rounded,
-                      title: '7 days',
-                      subtitle: 'Study streak',
-                      tint: const Color(0xFFFFF0DD),
-                      iconColor: const Color(0xFFF08A32),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const StudyStreakScreen(),
+                    child: GlassCard(
+                      radius: 22,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudyStreakScreen())),
+                      child: Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(width: 42, height: 42, decoration: BoxDecoration(color: const Color(0xFFFFF1D7), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFF0A13A))),
+                            const SizedBox(height: 13),
+                            const Text('7 days', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 3),
+                            Text('Study streak', style: TextStyle(fontSize: 11.5, color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
+                          ],
                         ),
                       ),
                     ),
@@ -1227,274 +1487,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
             sliver: SliverToBoxAdapter(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Today's plan",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    '$_completedTasks/3 done',
-                    style: const TextStyle(
-                      color: Color(0xFF4E8F5E),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
+                  const Text("Today's plan", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+                  Text('$_completedTasks/3 done', style: const TextStyle(color: StudyFlowTheme.sageStrong, fontWeight: FontWeight.w800, fontSize: 13)),
                 ],
               ),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _TaskCard(
-                  title: 'Chapter 1 — IP',
-                  subject: 'Information Practices',
-                  duration: '60 min',
-                  completed: _chapter1Completed,
-                  onToggle: () => setState(() => _chapter1Completed = !_chapter1Completed),
-                  onTap: () => _openFocus('Chapter 1 — IP', 'Information Practices', 60),
-                ),
-                _TaskCard(
-                  title: 'Chapter 2 — IP',
-                  subject: 'Information Practices',
-                  duration: '45 min',
-                  completed: _chapter2Completed,
-                  onToggle: () => setState(() => _chapter2Completed = !_chapter2Completed),
-                  onTap: () => _openFocus('Chapter 2 — IP', 'Information Practices', 45),
-                ),
-                _TaskCard(
-                  title: 'Practice SQL queries',
-                  subject: 'Database',
-                  duration: '30 min',
-                  completed: _sqlCompleted,
-                  onToggle: () => setState(() => _sqlCompleted = !_sqlCompleted),
-                  onTap: () => _openFocus('Practice SQL queries', 'Database', 30),
-                ),
+                _TaskCard(title: 'Chapter 1 — IP', subject: 'Information Practices', duration: '60 min', completed: _chapter1Completed, onToggle: () => setState(() => _chapter1Completed = !_chapter1Completed), onTap: () => _openFocus('Chapter 1 — IP', 'Information Practices', 60)),
+                _TaskCard(title: 'Chapter 2 — IP', subject: 'Information Practices', duration: '45 min', completed: _chapter2Completed, onToggle: () => setState(() => _chapter2Completed = !_chapter2Completed), onTap: () => _openFocus('Chapter 2 — IP', 'Information Practices', 45)),
+                _TaskCard(title: 'Practice SQL queries', subject: 'Database', duration: '30 min', completed: _sqlCompleted, onToggle: () => setState(() => _sqlCompleted = !_sqlCompleted), onTap: () => _openFocus('Practice SQL queries', 'Database', 30)),
               ]),
             ),
           ),
-
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 34),
             sliver: SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF3EC),
-                  borderRadius: BorderRadius.circular(22),
-                ),
+              child: GlassCard(
+                radius: 22,
                 child: Row(
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.lightbulb_rounded,
-                        color: Color(0xFF5B9B70),
-                      ),
-                    ),
+                    Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.lightbulb_rounded, color: StudyFlowTheme.sageStrong)),
                     const SizedBox(width: 13),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Small steps, big progress.',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                          ),
+                          Text('Small steps, big progress.', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: StudyFlowTheme.charcoal)),
                           SizedBox(height: 4),
-                          Text(
-                            'Focus on one task at a time and keep your momentum going.',
-                            style: TextStyle(color: Color(0xFF637066), fontSize: 12, height: 1.35),
-                          ),
+                          Text('Focus on one task at a time and keep your momentum going.', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 12, height: 1.35)),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickDashboardCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color tint;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  const _QuickDashboardCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.tint,
-    required this.iconColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: tint,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: iconColor),
-              ),
-              const SizedBox(height: 13),
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TodayProgressCard extends StatelessWidget {
-  final int completedTasks;
-  final double progress;
-
-  const _TodayProgressCard({
-    required this.completedTasks,
-    required this.progress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF78B685), Color(0xFF4E8F5E)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4E8F5E).withValues(alpha: 0.20),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 112,
-            height: 112,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 108,
-                  height: 108,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 10,
-                    backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${(progress * 100).round()}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const Text(
-                      'done',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Text(
-                        'TODAY',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 13),
-                const Text(
-                  'Your study progress',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    height: 1.05,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$completedTasks of 3 planned tasks completed',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
-                ),
-              ],
             ),
           ),
         ],
@@ -1567,235 +1603,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String email = user?.email ?? 'No email available';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Profile'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            30,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
           child: Column(
             children: [
               const SizedBox(height: 10),
-
-              CircleAvatar(
-                radius: 48,
-                backgroundColor: const Color(0xFFDCEBDD),
-                child: Icon(
-                  Icons.person_outline,
-                  size: 52,
-                  color: Colors.green.shade700,
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(colors: [Color(0xFFDCEFE0), Color(0xFFBBD5C1)]),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 18, offset: const Offset(0, 10))],
                 ),
+                child: const Icon(Icons.person_outline, size: 48, color: StudyFlowTheme.sageStrong),
               ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-
+              const SizedBox(height: 18),
+              Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               const SizedBox(height: 6),
+              Text(email, textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 28),
 
-              Text(
-                email,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              Card(
+              GlassCard(
+                radius: 20,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE7F0E8),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.person_outline,
-                      color: Color(0xFF5B9067),
-                    ),
-                  ),
-                  title: const Text(
-                    'Name',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(name),
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(width: 46, height: 46, decoration: BoxDecoration(color: const Color(0xFFEAF5EE), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.person_outline, color: StudyFlowTheme.sageStrong)),
+                  title: const Text('Name', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(name, style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600))),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              Card(
+              GlassCard(
+                radius: 20,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE7F0E8),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.email_outlined,
-                      color: Color(0xFF5B9067),
-                    ),
-                  ),
-                  title: const Text(
-                    'Email',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(email),
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(width: 46, height: 46, decoration: BoxDecoration(color: const Color(0xFFEAF5EE), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.email_outlined, color: StudyFlowTheme.sageStrong)),
+                  title: const Text('Email', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(email, style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600))),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              Card(
+              GlassCard(
+                radius: 20,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE7F0E8),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.lock_outline,
-                      color: Color(0xFF5B9067),
-                    ),
-                  ),
-                  title: const Text(
-                    'Reset Password',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Padding(
-                    padding: EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Send a password reset email',
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(width: 46, height: 46, decoration: BoxDecoration(color: const Color(0xFFEAF5EE), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.lock_outline, color: StudyFlowTheme.sageStrong)),
+                  title: const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: const Padding(padding: EdgeInsets.only(top: 4), child: Text('Send a password reset email', style: TextStyle(fontWeight: FontWeight.w600))),
+                  trailing: const Icon(Icons.chevron_right, color: StudyFlowTheme.muted),
                   onTap: () async {
                     if (user?.email == null) return;
 
                     try {
-                      await FirebaseAuth.instance
-                          .sendPasswordResetEmail(
-                        email: user!.email!,
-                      );
+                      await FirebaseAuth.instance.sendPasswordResetEmail(email: user!.email!);
 
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Password reset email sent. Check your inbox.',
-                            ),
-                          ),
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent. Check your inbox.')));
                       }
                     } on FirebaseAuthException catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              e.message ??
-                                  'Could not send password reset email.',
-                            ),
-                          ),
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Could not send password reset email.')));
                       }
                     }
                   },
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              Card(
+              GlassCard(
+                radius: 20,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE7F0E8),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.restore_outlined,
-                      color: Color(0xFF5B9067),
-                    ),
-                  ),
-                  title: const Text(
-                    'Restore purchases',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: const Padding(
-                    padding: EdgeInsets.only(top: 4),
-                    child: Text('Restore Pro access on this account'),
-                  ),
-                  trailing: _isRestoring
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.chevron_right),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(width: 46, height: 46, decoration: BoxDecoration(color: const Color(0xFFEAF5EE), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.restore_outlined, color: StudyFlowTheme.sageStrong)),
+                  title: const Text('Restore purchases', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: const Padding(padding: EdgeInsets.only(top: 4), child: Text('Restore Pro access on this account', style: TextStyle(fontWeight: FontWeight.w600))),
+                  trailing: _isRestoring ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right, color: StudyFlowTheme.muted),
                   onTap: _isRestoring ? null : _restorePurchases,
                 ),
               ),
@@ -1804,7 +1695,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               SizedBox(
                 width: double.infinity,
-                height: 52,
+                height: 54,
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     await _logOutRevenueCat();
@@ -1814,24 +1705,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Navigator.pop(context);
                     }
                   },
-                  icon: const Icon(
-                    Icons.logout,
-                    color: Colors.redAccent,
-                  ),
-                  label: const Text(
-                    'Sign Out',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  icon: const Icon(Icons.logout, color: Colors.redAccent),
+                  label: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w800)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: Colors.redAccent,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
                 ),
               ),
@@ -1943,7 +1821,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
             FilledButton(
               onPressed: () {
@@ -1983,9 +1861,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 );
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF6FA67A),
+                backgroundColor: StudyFlowTheme.sage,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Add Task'),
+              child: const Text('Add Task', style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           ],
         );
@@ -2022,55 +1901,41 @@ class _PlannerScreenState extends State<PlannerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Study Planner',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const Text('Study Planner', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.7)),
             const SizedBox(height: 6),
-            Text(
-              'Plan your study sessions and stay on track.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            Text('Plan your study sessions and stay on track.', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14.5, fontWeight: FontWeight.w600)),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                ...List.generate(4, (index) {
-                  final date = DateTime.now().add(Duration(days: index));
-                  final label = index == 0
-                      ? 'Today'
-                      : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][
-                          date.weekday - 1];
-                  return [
-                    if (index > 0) const SizedBox(width: 10),
-                    Expanded(
-                      child: _PlannerDate(
-                        day: '${date.day}',
-                        label: label,
-                        selected: index == 0,
+            GlassContainer(
+              radius: 22,
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                children: [
+                  ...List.generate(4, (index) {
+                    final date = DateTime.now().add(Duration(days: index));
+                    final label = index == 0 ? 'Today' : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][date.weekday - 1];
+                    return [
+                      if (index > 0) const SizedBox(width: 10),
+                      Expanded(
+                        child: _PlannerDate(
+                          day: '${date.day}',
+                          label: label,
+                          selected: index == 0,
+                        ),
                       ),
-                    ),
-                  ];
-                }).expand((children) => children),
-              ],
+                    ];
+                  }).expand((children) => children),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Today’s tasks',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                const Text('Today’s tasks', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
                 FloatingActionButton.small(
                   heroTag: 'plannerAdd',
                   onPressed: _showAddTaskDialog,
-                  backgroundColor: const Color(0xFF6FA67A),
+                  backgroundColor: StudyFlowTheme.sage,
                   foregroundColor: Colors.white,
                   child: const Icon(Icons.add),
                 ),
@@ -2080,13 +1945,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
             Expanded(
               child: _tasks.isEmpty
                   ? Center(
-                      child: Text(
-                        'No tasks yet.\nTap + to add your first task.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 15,
-                        ),
+                      child: GlassContainer(
+                        radius: 22,
+                        padding: const EdgeInsets.all(18),
+                        child: Text('No tasks yet.\nTap + to add your first task.', textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 15, height: 1.5, fontWeight: FontWeight.w600)),
                       ),
                     )
                   : SingleChildScrollView(
@@ -2100,13 +1962,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               completed: task.completed,
                               onToggle: () {
                                 final next = !task.completed;
-                                setState(() {
-                                  task.completed = next;
-                                });
-                                StudyFlowData.instance.recordTask(
-                                  completed: next,
-                                  minutes: task.durationMinutes,
-                                );
+                                setState(() { task.completed = next; });
+                                StudyFlowData.instance.recordTask(completed: next, minutes: task.durationMinutes);
                               },
                               onTap: () => _openFocus(task),
                             ),
@@ -2136,45 +1993,18 @@ class _PlannerDate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 13,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: BoxDecoration(
-        color: selected
-            ? const Color(0xFF6FA67A)
-            : Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-          color: selected
-              ? const Color(0xFF6FA67A)
-              : Colors.grey.shade200,
-        ),
+        gradient: selected ? const LinearGradient(colors: [Color(0xFF5F9C75), Color(0xFF407D5E)]) : null,
+        color: selected ? null : Colors.white.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: selected ? const Color(0xFF5E9A74) : const Color(0x1F5E7B5A), width: 1),
       ),
       child: Column(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: selected
-                  ? Colors.white70
-                  : Colors.grey.shade600,
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: selected ? Colors.white70 : StudyFlowTheme.muted, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(
-            day,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight:
-                  FontWeight.w700,
-              color: selected
-                  ? Colors.white
-                  : Colors.black87,
-            ),
-          ),
+          Text(day, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: selected ? Colors.white : StudyFlowTheme.charcoal)),
         ],
       ),
     );
@@ -2309,278 +2139,84 @@ class _FocusScreenState
 
   @override
   Widget build(BuildContext context) {
-    final totalSeconds =
-        widget.durationMinutes * 60;
-
-    final progress = totalSeconds == 0
-        ? 0.0
-        : _remainingSeconds /
-            totalSeconds;
+    final totalSeconds = widget.durationMinutes * 60;
+    final progress = totalSeconds == 0 ? 0.0 : _remainingSeconds / totalSeconds;
 
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Focus Session',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Focus Session'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding:
-              const EdgeInsets.fromLTRB(
-            20,
-            10,
-            20,
-            30,
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(24),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      widget.taskTitle,
-                      textAlign:
-                          TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight:
-                            FontWeight.w700,
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+          child: GlassContainer(
+            radius: 32,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Text(widget.taskTitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                const SizedBox(height: 6),
+                Text(widget.subject, textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: 260,
+                  height: 260,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 250,
+                        height: 250,
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 10,
+                          backgroundColor: const Color(0xFFE7F0E8),
+                          valueColor: const AlwaysStoppedAnimation<Color>(StudyFlowTheme.sage),
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    Text(
-                      widget.subject,
-                      textAlign:
-                          TextAlign.center,
-                      style: TextStyle(
-                        color:
-                            Colors.grey.shade600,
-                        fontSize: 14,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 28,
-                    ),
-
-                    SizedBox(
-                      width: 260,
-                      height: 260,
-                      child: Stack(
-                        alignment:
-                            Alignment.center,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
-                            width: 250,
-                            height: 250,
-                            child:
-                                CircularProgressIndicator(
-                              value: progress,
-                              strokeWidth: 10,
-                              backgroundColor:
-                                  const Color(
-                                0xFFE7F0E8,
-                              ),
-                              valueColor:
-                                  const AlwaysStoppedAnimation<
-                                      Color>(
-                                Color(
-                                  0xFF6FA67A,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          Column(
-                            mainAxisSize:
-                                MainAxisSize.min,
-                            children: [
-                              Text(
-                                _formatTime(),
-                                style:
-                                    const TextStyle(
-                                  fontSize: 46,
-                                  fontWeight:
-                                      FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 5,
-                              ),
-                              Text(
-                                _isRunning
-                                    ? 'Stay focused'
-                                    : 'Focus session',
-                                style:
-                                    TextStyle(
-                                  color: Colors
-                                      .grey
-                                      .shade600,
-                                ),
-                              ),
-                            ],
-                          ),
+                          Text(_formatTime(), style: const TextStyle(fontSize: 46, fontWeight: FontWeight.w800, color: StudyFlowTheme.charcoal)),
+                          const SizedBox(height: 5),
+                          Text(_isRunning ? 'Stay focused' : 'Focus session', style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(
-                      height: 28,
-                    ),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child:
-                              FilledButton.icon(
-                            onPressed:
-                                _isRunning
-                                    ? _pauseTimer
-                                    : _startTimer,
-                            icon: Icon(
-                              _isRunning
-                                  ? Icons.pause
-                                  : Icons.play_arrow,
-                            ),
-                            label: Text(
-                              _isRunning
-                                  ? 'Pause'
-                                  : 'Start Session',
-                            ),
-                            style:
-                                FilledButton.styleFrom(
-                              backgroundColor:
-                                  const Color(
-                                0xFF6FA67A,
-                              ),
-                              minimumSize:
-                                  const Size(
-                                0,
-                                52,
-                              ),
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        SizedBox(
-                          height: 52,
-                          width: 52,
-                          child:
-                              OutlinedButton(
-                            onPressed:
-                                _resetTimer,
-                            style:
-                                OutlinedButton
-                                    .styleFrom(
-                              padding:
-                                  EdgeInsets.zero,
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  16,
-                                ),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons
-                                  .restart_alt,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(
-                    0xFFE7F0E8,
+                    ],
                   ),
-                  borderRadius:
-                      BorderRadius.circular(20),
                 ),
-                child: const Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                const SizedBox(height: 28),
+                Row(
                   children: [
-                    Icon(
-                      Icons
-                          .tips_and_updates_outlined,
-                      color:
-                          Color(0xFF5B9067),
-                    ),
-                    SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
-                            'Focus tip',
-                            style:
-                                TextStyle(
-                              fontWeight:
-                                  FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Keep your phone away and focus only on the current task.',
-                          ),
-                        ],
+                      child: FilledButton.icon(
+                        onPressed: _isRunning ? _pauseTimer : _startTimer,
+                        icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
+                        label: Text(_isRunning ? 'Pause' : 'Start Session'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: StudyFlowTheme.sage,
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      height: 52,
+                      width: 52,
+                      child: OutlinedButton(
+                        onPressed: _resetTimer,
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          side: const BorderSide(color: Color(0x2E5D8E71)),
+                        ),
+                        child: const Icon(Icons.restart_alt, color: StudyFlowTheme.sageStrong),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2751,61 +2387,25 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          24,
-          20,
-          0,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'My Notes',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.search,
-                  ),
-                ),
-
-                IconButton(
-                  onPressed: _showAddNoteDialog,
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-                ),
+                const Expanded(child: Text('My Notes', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.7))),
+                IconButton(onPressed: () {}, icon: const Icon(Icons.search_rounded, color: StudyFlowTheme.sageStrong)),
+                IconButton(onPressed: _showAddNoteDialog, icon: const Icon(Icons.add_rounded, color: StudyFlowTheme.sageStrong)),
               ],
             ),
-
             const SizedBox(height: 6),
-
-            Text(
-              'Keep your learning organized.',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
-            ),
-
+            Text('Keep your learning organized.', style: TextStyle(color: StudyFlowTheme.muted, fontSize: 14.5, fontWeight: FontWeight.w600)),
             const SizedBox(height: 22),
-
             Expanded(
               child: ListView.builder(
                 itemCount: _notes.length,
                 itemBuilder: (context, index) {
                   final note = _notes[index];
-
                   return _NoteCard(
                     title: note['title'] ?? '',
                     subject: note['subject'] ?? '',
@@ -2855,74 +2455,35 @@ class _NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(17),
-          child: Row(
-            children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE7F0E8),
-                borderRadius:
-                    BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.description_outlined,
-                color: Color(0xFF5B9067),
-              ),
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      radius: 22,
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF5EE),
+              borderRadius: BorderRadius.circular(14),
             ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    subject,
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 5),
-
-                  Text(
-                    preview,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ],
+            child: const Icon(Icons.description_outlined, color: StudyFlowTheme.sageStrong),
           ),
-        ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: -0.2)),
+                const SizedBox(height: 4),
+                Text(subject, style: const TextStyle(color: StudyFlowTheme.sageStrong, fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 5),
+                Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 13, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3053,57 +2614,28 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: StudyFlowTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text(
-          'Note',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Note', style: TextStyle(fontWeight: FontWeight.w700)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
         actions: [
-          IconButton(
-            tooltip: 'Edit note',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _showEditDialog,
-          ),
+          IconButton(tooltip: 'Edit note', icon: const Icon(Icons.edit_outlined), onPressed: _showEditDialog),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _subject,
-                  style: TextStyle(
-                    color: Colors.green.shade700,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  _content,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
+        child: GlassContainer(
+          radius: 30,
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+              const SizedBox(height: 8),
+              Text(_subject, style: const TextStyle(color: StudyFlowTheme.sageStrong, fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 24),
+              Text(_content, style: const TextStyle(fontSize: 16, height: 1.6, color: StudyFlowTheme.charcoal)),
+            ],
           ),
         ),
       ),
@@ -3118,36 +2650,72 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
-Future<void> _openAnalytics(BuildContext context) async {
-  bool isPro = false;
-  try {
-    final customerInfo = await Purchases.getCustomerInfo();
-    isPro = customerInfo.entitlements.active.containsKey('studyflow_pro');
-  } catch (_) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not verify Pro access. Try again.')),
-      );
+
+  Future<void> _showThemeDialog(BuildContext context) async {
+    final selected = await showDialog<ThemeMode>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Appearance'),
+        children: [
+          ListTile(
+            leading: Icon(
+              StudyFlowThemeController.instance.value == ThemeMode.light
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+            ),
+            title: const Text('Light'),
+            subtitle: const Text('Always use the light StudyFlow theme'),
+            onTap: () => Navigator.pop(dialogContext, ThemeMode.light),
+          ),
+          ListTile(
+            leading: Icon(
+              StudyFlowThemeController.instance.value == ThemeMode.system
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+            ),
+            title: const Text('Device setting'),
+            subtitle: const Text('Follow your device preference safely'),
+            onTap: () => Navigator.pop(dialogContext, ThemeMode.system),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      StudyFlowThemeController.instance.value = selected;
     }
-    return;
   }
 
-  if (!context.mounted) return;
-
-  if (isPro) {
-    _open(context, 'Analytics');
-  } else {
+  Future<void> _openAnalytics(BuildContext context) async {
+    bool isPro = false;
     try {
-      await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+      final customerInfo = await Purchases.getCustomerInfo();
+      isPro = customerInfo.entitlements.active.containsKey('studyflow_pro');
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The Pro screen is unavailable right now.')),
+          const SnackBar(content: Text('Could not verify Pro access. Try again.')),
         );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    if (isPro) {
+      _open(context, 'Analytics');
+    } else {
+      try {
+        await RevenueCatUI.presentPaywallIfNeeded('studyflow_pro');
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('The Pro screen is unavailable right now.')),
+          );
+        }
       }
     }
   }
-}
 
   void _open(BuildContext context, String title) {
     final pages = <String, Widget>{
@@ -3160,10 +2728,7 @@ Future<void> _openAnalytics(BuildContext context) async {
     final page = pages[title];
     if (page == null) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
@@ -3172,61 +2737,31 @@ Future<void> _openAnalytics(BuildContext context) async {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 28, 20, 30),
         children: [
-          const Text(
-            'More',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
-          ),
+          const Text('More', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.7)),
           const SizedBox(height: 22),
-          _MoreTile(
-            icon: Icons.flag_outlined,
-            title: 'Goals',
-            subtitle: 'Set and track your daily study goal',
-            onTap: () => _open(context, 'Goals'),
-          ),
-          _MoreTile(
-            icon: Icons.bar_chart_outlined,
-            title: 'Analytics',
-            subtitle: 'View your weekly study progress',
-            onTap: () => _openAnalytics(context),
-          ),
-          _MoreTile(
-            icon: Icons.local_fire_department_outlined,
-            title: 'Study Streak',
-            subtitle: 'Keep your study consistency going',
-            onTap: () => _open(context, 'Study Streak'),
-          ),
-          _MoreTile(
-            icon: Icons.lightbulb_outline,
-            title: 'Motivation',
-            subtitle: 'Daily quotes and study tips',
-            onTap: () => _open(context, 'Motivation'),
-           ),
+          _MoreTile(icon: Icons.flag_outlined, title: 'Goals', subtitle: 'Set and track your daily study goal', onTap: () => _open(context, 'Goals')),
+          _MoreTile(icon: Icons.bar_chart_outlined, title: 'Analytics', subtitle: 'View your weekly study progress', onTap: () => _openAnalytics(context)),
+          _MoreTile(icon: Icons.local_fire_department_outlined, title: 'Study Streak', subtitle: 'Keep your study consistency going', onTap: () => _open(context, 'Study Streak')),
+          _MoreTile(icon: Icons.lightbulb_outline, title: 'Motivation', subtitle: 'Daily quotes and study tips', onTap: () => _open(context, 'Motivation')),
+          _MoreTile(icon: Icons.brightness_6_outlined, title: 'Appearance', subtitle: 'Light or follow your device setting', onTap: () => _showThemeDialog(context)),
           const SizedBox(height: 4),
-          Card(
+          GlassCard(
+            radius: 22,
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 7,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               leading: Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFE8E8),
+                  color: const Color(0xFFFFE9E8),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(Icons.logout, color: Colors.redAccent),
               ),
-              title: const Text(
-                'Sign Out',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: const Padding(
-                padding: EdgeInsets.only(top: 3),
-                child: Text('Sign out of your StudyFlow account'),
-              ),
-              trailing: const Icon(Icons.chevron_right),
+              title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Padding(padding: EdgeInsets.only(top: 3), child: Text('Sign out of your StudyFlow account')),
+              trailing: const Icon(Icons.chevron_right, color: StudyFlowTheme.muted),
               onTap: () async {
                 await _logOutRevenueCat();
                 await FirebaseAuth.instance.signOut();
@@ -3245,41 +2780,28 @@ class _MoreTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _MoreTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _MoreTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GlassCard(
+      radius: 22,
       margin: const EdgeInsets.only(bottom: 12),
+      onTap: onTap,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 7,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         leading: Container(
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: const Color(0xFFE7F0E8),
+            color: const Color(0xFFEAF5EE),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, color: const Color(0xFF5B9067)),
+          child: Icon(icon, color: StudyFlowTheme.sageStrong),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Text(subtitle),
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Padding(padding: const EdgeInsets.only(top: 3), child: Text(subtitle, style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w500))),
+        trailing: const Icon(Icons.chevron_right, color: StudyFlowTheme.muted),
       ),
     );
   }
@@ -3344,13 +2866,8 @@ class GoalsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Goals',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Goals'),
       body: AnimatedBuilder(
         animation: StudyFlowData.instance,
         builder: (context, _) {
@@ -3360,103 +2877,56 @@ class GoalsScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
             children: [
-              Container(
+              GlassContainer(
+                radius: 28,
                 padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F0E8),
-                  borderRadius: BorderRadius.circular(24),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.flag_rounded,
-                      size: 34,
-                      color: Color(0xFF5B9067),
-                    ),
+                    const Icon(Icons.flag_rounded, size: 34, color: StudyFlowTheme.sageStrong),
                     const SizedBox(height: 14),
-                    const Text(
-                      'Today’s study goal',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    const Text('Today’s study goal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 8),
-                    Text(
-                      '${_formatMinutes(data.completedMinutes)} of '
-                      '${_formatMinutes(data.goalMinutes)} completed',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
+                    Text('${_formatMinutes(data.completedMinutes)} of ${_formatMinutes(data.goalMinutes)} completed', style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 12,
-                        backgroundColor: Colors.white,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF6FA67A),
-                        ),
+                        backgroundColor: Colors.white.withValues(alpha: 0.55),
+                        valueColor: const AlwaysStoppedAnimation<Color>(StudyFlowTheme.sage),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      '${(progress * 100).round()}% complete',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text('${(progress * 100).round()}% complete', style: const TextStyle(fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
-              Card(
+              GlassCard(
+                radius: 22,
                 child: ListTile(
-                  leading: const Icon(
-                    Icons.timer_outlined,
-                    color: Color(0xFF5B9067),
-                  ),
-                  title: const Text(
-                    'Daily target',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(_formatMinutes(data.goalMinutes)),
-                  trailing: const Icon(Icons.edit_outlined),
+                  leading: const Icon(Icons.timer_outlined, color: StudyFlowTheme.sageStrong),
+                  title: const Text('Daily target', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text(_formatMinutes(data.goalMinutes), style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
+                  trailing: const Icon(Icons.edit_outlined, color: StudyFlowTheme.muted),
                   onTap: () => _changeGoal(context),
                 ),
               ),
               const SizedBox(height: 12),
-              Card(
+              GlassCard(
+                radius: 22,
                 child: ListTile(
-                  leading: const Icon(
-                    Icons.task_alt,
-                    color: Color(0xFF5B9067),
-                  ),
-                  title: const Text(
-                    'Tasks completed',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text('${data.completedTasks} tasks completed'),
+                  leading: const Icon(Icons.task_alt, color: StudyFlowTheme.sageStrong),
+                  title: const Text('Tasks completed', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text('${data.completedTasks} tasks completed', style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'How goals work',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              const Text('How goals work', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              Text(
-                'Complete a planned task or finish a Focus session. '
-                'Your study progress updates automatically.',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  height: 1.5,
-                ),
-              ),
+              Text('Complete a planned task or finish a Focus session. Your study progress updates automatically.', style: TextStyle(color: StudyFlowTheme.muted, height: 1.5, fontWeight: FontWeight.w600)),
             ],
           );
         },
@@ -3482,13 +2952,8 @@ class AnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Analytics',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Analytics'),
       body: AnimatedBuilder(
         animation: StudyFlowData.instance,
         builder: (context, _) {
@@ -3500,135 +2965,48 @@ class AnalyticsScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: _AnalyticsStat(
-                      icon: Icons.timer_outlined,
-                      value: _format(data.completedMinutes),
-                      label: 'Today',
-                    ),
-                  ),
+                  Expanded(child: StatTile(icon: Icons.timer_outlined, value: _format(data.completedMinutes), label: 'Today', accent: StudyFlowTheme.sageStrong)),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _AnalyticsStat(
-                      icon: Icons.task_alt,
-                      value: '${data.completedTasks}',
-                      label: 'Tasks done',
-                    ),
-                  ),
+                  Expanded(child: StatTile(icon: Icons.task_alt, value: '${data.completedTasks}', label: 'Tasks done', accent: const Color(0xFF4F8D60))),
                 ],
               ),
               const SizedBox(height: 12),
-              _AnalyticsStat(
-                icon: Icons.calendar_month_outlined,
-                value: _format(total),
-                label: 'Last 7 days',
-              ),
+              StatTile(icon: Icons.calendar_month_outlined, value: _format(total), label: 'Last 7 days', accent: const Color(0xFFA3C9B0)),
               const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Weekly progress',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Study time over the last 7 days',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        height: 220,
-                        width: double.infinity,
-                        child: _WeeklyLineChart(
-                          values: data.weeklyMinutes,
-                        ),
-                      ),
-                    ],
-                  ),
+              GlassContainer(
+                radius: 28,
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Weekly progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    Text('Study time over the last 7 days', style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 18),
+                    SizedBox(height: 220, width: double.infinity, child: _WeeklyLineChart(values: data.weeklyMinutes)),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.insights_outlined,
-                        color: Color(0xFF5B9067),
-                        size: 30,
+              GlassContainer(
+                radius: 22,
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    const Icon(Icons.insights_outlined, color: StudyFlowTheme.sageStrong, size: 30),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        data.completedMinutes >= data.goalMinutes ? 'Great work! You reached your daily goal. 🎉' : 'Keep going — you are building your study habit.',
+                        style: const TextStyle(fontWeight: FontWeight.w700, height: 1.4),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          data.completedMinutes >= data.goalMinutes
-                              ? 'Great work! You reached your daily goal. 🎉'
-                              : 'Keep going — you are building your study habit.',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _AnalyticsStat extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _AnalyticsStat({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Row(
-          children: [
-            Icon(icon, color: const Color(0xFF5B9067)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    label,
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -3752,13 +3130,8 @@ class StudyStreakScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Study Streak',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Study Streak'),
       body: AnimatedBuilder(
         animation: StudyFlowData.instance,
         builder: (context, _) {
@@ -3767,100 +3140,46 @@ class StudyStreakScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 28,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F0E8),
-                  borderRadius: BorderRadius.circular(24),
-                ),
+              GlassContainer(
+                radius: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
                 child: Column(
                   children: [
-                    const Text(
-                      '🔥',
-                      style: TextStyle(fontSize: 64),
-                    ),
+                    const Text('🔥', style: TextStyle(fontSize: 64)),
                     const SizedBox(height: 8),
-                    Text(
-                      '${data.currentStreak} Day Streak',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    Text('${data.currentStreak} Day Streak', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
                     const SizedBox(height: 6),
-                    Text(
-                      'Keep studying every day to maintain your streak.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        height: 1.4,
-                      ),
-                    ),
+                    Text('Keep studying every day to maintain your streak.', textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, height: 1.4, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(
-                    child: _StreakStat(
-                      value: '${data.currentStreak}',
-                      label: 'Current streak',
-                    ),
-                  ),
+                  Expanded(child: _StreakStat(value: '${data.currentStreak}', label: 'Current streak')),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _StreakStat(
-                      value: '${data.longestStreak}',
-                      label: 'Longest streak',
-                    ),
-                  ),
+                  Expanded(child: _StreakStat(value: '${data.longestStreak}', label: 'Longest streak')),
                 ],
               ),
               const SizedBox(height: 20),
-              const Text(
-                'This week',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              const Text('This week', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 18,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(7, (index) {
-                      final today = DateTime.now();
-                      final monday = today.subtract(
-                        Duration(days: today.weekday - 1),
-                      );
-                      final date = monday.add(Duration(days: index));
-                      const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                      return _StreakDay(
-                        day: labels[index],
-                        active: data.hasActivityOn(date),
-                      );
-                    }),
-                  ),
+              GlassContainer(
+                radius: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(7, (index) {
+                    final today = DateTime.now();
+                    final monday = today.subtract(Duration(days: today.weekday - 1));
+                    final date = monday.add(Duration(days: index));
+                    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    return _StreakDay(day: labels[index], active: data.hasActivityOn(date));
+                  }),
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                'Complete at least one task or Focus session each day '
-                'to keep building your streak.',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  height: 1.5,
-                ),
-              ),
+              Text('Complete at least one task or Focus session each day to keep building your streak.', style: TextStyle(color: StudyFlowTheme.muted, height: 1.5, fontWeight: FontWeight.w600)),
             ],
           );
         },
@@ -3880,24 +3199,15 @@ class _StreakStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GlassCard(
+      radius: 22,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
             const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -3986,92 +3296,48 @@ class _MotivationScreenState extends State<MotivationScreen> {
     final item = _quotes[_index];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8F5),
-      appBar: AppBar(
-        title: const Text(
-          'Motivation',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      backgroundColor: StudyFlowTheme.backgroundLight,
+      appBar: const GlassAppBar(title: 'Motivation'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
         children: [
-          Container(
+          GlassContainer(
+            radius: 32,
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE7F0E8),
-              borderRadius: BorderRadius.circular(24),
-            ),
             child: Column(
               children: [
-                const Icon(
-                  Icons.format_quote_rounded,
-                  size: 42,
-                  color: Color(0xFF5B9067),
-                ),
+                const Icon(Icons.format_quote_rounded, size: 42, color: StudyFlowTheme.sageStrong),
                 const SizedBox(height: 18),
-                Text(
-                  '“${item['quote']}”',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
+                Text('“${item['quote']}”', textAlign: TextAlign.center, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800, height: 1.35, letterSpacing: -0.2)),
                 const SizedBox(height: 22),
-                Text(
-                  item['tip']!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 15,
-                    height: 1.45,
-                  ),
-                ),
+                Text(item['tip']!, textAlign: TextAlign.center, style: TextStyle(color: StudyFlowTheme.muted, fontSize: 15, height: 1.45, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _nextQuote,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             label: const Text('New Quote'),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6FA67A),
+              backgroundColor: StudyFlowTheme.sage,
               padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
           ),
           const SizedBox(height: 22),
-          const Text(
-            'Today’s reminder',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          const Text('Today’s reminder', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
-          Card(
+          GlassCard(
+            radius: 22,
             child: const Padding(
               padding: EdgeInsets.all(18),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.self_improvement_outlined,
-                    color: Color(0xFF5B9067),
-                  ),
+                  Icon(Icons.self_improvement_outlined, color: StudyFlowTheme.sageStrong),
                   SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Put your phone away, open your current task, '
-                      'and give it your full attention. 🌱',
-                      style: TextStyle(height: 1.45),
-                    ),
-                  ),
+                  Expanded(child: Text('Put your phone away, open your current task, and give it your full attention. 🌱', style: TextStyle(height: 1.45, fontWeight: FontWeight.w600))),
                 ],
               ),
             ),
@@ -4104,105 +3370,81 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
+      radius: 22,
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: completed ? const Color(0xFFD9E9DC) : const Color(0xFFF0F1EE),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: onToggle,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: completed ? const Color(0xFF69A878) : Colors.transparent,
-                      border: Border.all(
-                        color: completed ? const Color(0xFF69A878) : const Color(0xFFC9CEC9),
-                        width: 2,
-                      ),
-                    ),
-                    child: completed
-                        ? const Icon(Icons.check_rounded, size: 18, color: Colors.white)
-                        : null,
-                  ),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: onToggle,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: completed ? StudyFlowTheme.sage : Colors.transparent,
+                  border: Border.all(color: completed ? StudyFlowTheme.sage : const Color(0xFFC9CEC9), width: 2),
                 ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: completed ? Colors.grey.shade500 : const Color(0xFF202820),
-                          decoration: completed ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Icon(Icons.book_outlined, size: 13, color: Colors.grey.shade500),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              subject,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 11.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F6F2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF5B9B70)),
-                      const SizedBox(width: 4),
-                      Text(
-                        duration,
-                        style: const TextStyle(
-                          color: Color(0xFF4F7F5A),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
-              ],
+                child: completed ? const Icon(Icons.check_rounded, size: 18, color: Colors.white) : null,
+              ),
             ),
-          ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: completed ? Colors.grey.shade500 : StudyFlowTheme.charcoal,
+                      decoration: completed ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Icon(Icons.book_outlined, size: 13, color: StudyFlowTheme.muted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          subject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: StudyFlowTheme.muted, fontSize: 11.5, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF5EE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 14, color: StudyFlowTheme.sageStrong),
+                  const SizedBox(width: 4),
+                  Text(duration, style: const TextStyle(color: StudyFlowTheme.sageStrong, fontSize: 11, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.chevron_right_rounded, color: StudyFlowTheme.muted),
+          ],
         ),
       ),
     );

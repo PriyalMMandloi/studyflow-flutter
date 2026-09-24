@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties and replace every value.
+# Keep android/key.properties private; it is ignored by Git.
+storePassword=123456
+keyPassword=123456
+keyAlias=upload
+storeFile=C:/absolute/path/to/studyflow-upload.jks

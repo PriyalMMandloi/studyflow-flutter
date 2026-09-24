@@ -46,5 +46,7 @@ app.*.map.json
 
 # Local Android signing credentials
 android/key.properties
+*.jks
+*.keystore
 android/app/*.jks
 android/app/*.keystore
