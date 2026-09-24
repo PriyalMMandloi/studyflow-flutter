@@ -8,6 +8,8 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'firebase_options.dart';
 
+Future<void>? _revenueCatReady;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -20,7 +22,8 @@ Future<void> main() async {
   );
 
   runApp(const StudyFlowApp());
-  unawaited(_configureRevenueCat(revenueCatApiKey));
+  _revenueCatReady = _configureRevenueCat(revenueCatApiKey);
+  unawaited(_revenueCatReady!);
 }
 
 Future<void> _configureRevenueCat(String apiKey) async {
@@ -31,16 +34,17 @@ Future<void> _configureRevenueCat(String apiKey) async {
       await Purchases.configure(PurchasesConfiguration(apiKey));
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await Purchases.logIn(user.uid);
-    }
   } catch (_) {
   }
 }
 
 Future<void> _syncRevenueCatUser(User? user) async {
   try {
+    final ready = _revenueCatReady;
+    if (ready == null) return;
+    await ready;
+    if (!await Purchases.isConfigured) return;
+
     if (user == null) {
       await Purchases.logOut();
     } else {
@@ -52,6 +56,11 @@ Future<void> _syncRevenueCatUser(User? user) async {
 
 Future<void> _logOutRevenueCat() async {
   try {
+    final ready = _revenueCatReady;
+    if (ready == null) return;
+    await ready;
+    if (!await Purchases.isConfigured) return;
+
     await Purchases.logOut();
   } catch (_) {
   }
